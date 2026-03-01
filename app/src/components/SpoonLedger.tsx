@@ -136,10 +136,10 @@ export default function SpoonLedger() {
   };
 
   return (
-    <div className="bg-surface border border-[rgba(255,255,255,0.1)] rounded-card overflow-hidden">
+    <div className="glass-card rounded-card overflow-hidden">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-grid-3 hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between p-grid-3 hover:bg-[rgba(255,255,255,0.03)] transition-colors duration-200 cursor-pointer min-h-[44px]"
       >
         <div className="flex items-center gap-grid-2">
           <span className="text-xl" aria-hidden>
@@ -155,7 +155,7 @@ export default function SpoonLedger() {
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-text-secondary transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-5 h-5 text-text-secondary transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -180,11 +180,10 @@ export default function SpoonLedger() {
             <div className="px-grid-3 pb-grid-3 space-y-grid-3">
               {/* Add event form */}
               <div
-                className={`space-y-grid-2 rounded-card p-grid-2 -mx-grid-2 border transition-colors ${
-                  wouldGoNegative && prediction
+                className={`space-y-grid-2 rounded-card p-grid-2 -mx-grid-2 border transition-colors ${wouldGoNegative && prediction
                     ? "border-critical bg-critical/5"
                     : "border-transparent"
-                }`}
+                  }`}
               >
                 <label className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
                   Log an activity
@@ -202,10 +201,10 @@ export default function SpoonLedger() {
                     onChange={(e) =>
                       handleCategoryChange(
                         e.target.value as
-                          | "rest"
-                          | "light"
-                          | "moderate"
-                          | "heavy",
+                        | "rest"
+                        | "light"
+                        | "moderate"
+                        | "heavy",
                       )
                     }
                     className="rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-grid-2 py-1.5 text-text-primary text-data"
@@ -225,7 +224,7 @@ export default function SpoonLedger() {
                       !title.trim() ||
                       (isPredicting && !overrideMode)
                     }
-                    className="px-grid-2 py-1.5 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-data font-medium transition-colors"
+                    className="px-grid-2 py-1.5 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-data font-medium transition-colors duration-200 cursor-pointer min-h-[44px]"
                   >
                     {submitting ? "Adding..." : "Add"}
                   </button>
@@ -270,16 +269,15 @@ export default function SpoonLedger() {
                       <button
                         type="button"
                         onClick={() => setOverrideMode(true)}
-                        className="text-[11px] text-text-secondary/60 hover:text-text-secondary cursor-pointer"
+                        className="text-[11px] text-text-secondary/60 hover:text-text-secondary cursor-pointer min-h-[44px]"
                       >
                         I know better
                       </button>
                     </div>
                     <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          wouldGoNegative ? "bg-critical" : "bg-primary"
-                        }`}
+                        className={`h-full rounded-full transition-all duration-500 ${wouldGoNegative ? "bg-critical" : "bg-primary"
+                          }`}
                         style={{
                           width: `${(prediction.finalCost / 10) * 100}%`,
                         }}
@@ -309,7 +307,7 @@ export default function SpoonLedger() {
                       <button
                         type="button"
                         onClick={() => setOverrideMode(false)}
-                        className="text-[11px] text-primary cursor-pointer"
+                        className="text-[11px] text-primary cursor-pointer min-h-[44px]"
                       >
                         Use AI estimate
                       </button>
@@ -352,7 +350,7 @@ export default function SpoonLedger() {
                       return (
                         <li
                           key={ev.id}
-                          className="flex items-center justify-between gap-grid-2 rounded-card border border-[rgba(255,255,255,0.08)] bg-background/50 px-grid-2 py-grid-1.5"
+                          className="flex items-center justify-between gap-grid-2 rounded-card border border-[rgba(255,255,255,0.08)] bg-surface px-grid-2 py-grid-1.5"
                         >
                           <div>
                             <span className="text-data text-text-primary font-medium">

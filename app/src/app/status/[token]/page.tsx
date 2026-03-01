@@ -56,7 +56,24 @@ interface ScheduleEvent {
   title: string;
   cost: number;
   start: string;
+  end?: string;
+  reason?: string;
   priority: "essential" | "important" | "flexible";
+}
+
+interface ForecastAudit {
+  event_costs: Array<{
+    id: string;
+    title: string;
+    cost: number;
+    start: string;
+    end: string;
+    reason: string;
+    priority: "essential" | "important" | "flexible" | "deferrable";
+  }>;
+  total_projected_drain: number;
+  crash_probability: number;
+  risk_summary: string;
 }
 
 interface ActivityRow {
@@ -81,13 +98,10 @@ export default function CaregiverStatusPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [manualEvents, setManualEvents] = useState<ManualEventRow[]>([]);
   const [latestReport, setLatestReport] = useState<ReportRow | null>(null);
+  const [forecastAudit, setForecastAudit] = useState<ForecastAudit | null>(null);
+  const [usingDemoForecast, setUsingDemoForecast] = useState(false);
 
-  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([
-    { id: "demo-2", title: "Physical Therapy", cost: 6, start: "10:00 AM", priority: "essential" },
-    { id: "demo-3", title: "Grocery Shopping", cost: 5, start: "12:30 PM", priority: "flexible" },
-    { id: "demo-4", title: "Team Meeting", cost: 4, start: "2:00 PM", priority: "important" },
-    { id: "demo-6", title: "Dinner Cooking", cost: 4, start: "6:00 PM", priority: "flexible" },
-  ]);
+  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([]);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskTime, setNewTaskTime] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"essential" | "important" | "flexible">("important");
@@ -182,6 +196,42 @@ export default function CaregiverStatusPage() {
 
     setManualEvents(ledgerRes.data ?? []);
     setLatestReport(reportRes.data?.[0] ?? null);
+
+    const forecastRes = await fetch(`/api/caregiver-forecast/${token}`);
+    if (forecastRes.ok) {
+      const forecastData = await forecastRes.json();
+      setUsingDemoForecast(Boolean(forecastData.using_demo));
+      if (forecastData.audit) {
+        setForecastAudit(forecastData.audit as ForecastAudit);
+        const mappedEvents: ScheduleEvent[] =
+          (forecastData.audit.event_costs ?? []).map(
+            (event: {
+              id: string;
+              title: string;
+              cost: number;
+              start: string;
+              end: string;
+              reason: string;
+              priority: "essential" | "important" | "flexible" | "deferrable";
+            }) => ({
+              id: event.id,
+              title: event.title,
+              cost: event.cost,
+              start: formatTime(event.start),
+              end: formatTime(event.end),
+              reason: event.reason,
+              priority:
+                event.priority === "deferrable"
+                  ? "flexible"
+                  : event.priority,
+            }),
+          );
+        setScheduleEvents(mappedEvents);
+      } else {
+        setForecastAudit(null);
+        setScheduleEvents([]);
+      }
+    }
   }
 
   async function claimTask(event: ScheduleEvent) {
@@ -251,11 +301,11 @@ export default function CaregiverStatusPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-grid-3">
         <div className="text-center space-y-4">
           <div className="text-4xl">🔒</div>
-          <h1 className="text-xl font-bold text-white">Access Denied</h1>
-          <p className="text-slate-400">{error}</p>
+          <h1 className="text-h1 text-text-primary">Access Denied</h1>
+          <p className="text-body text-text-secondary">{error}</p>
         </div>
       </div>
     );
@@ -312,34 +362,73 @@ export default function CaregiverStatusPage() {
     heavy: "Heavy",
   };
 
+  const unclaimedScheduleEvents = scheduleEvents
+    .filter((event) => !alreadyClaimed.includes(event.id))
+    .sort((a, b) => {
+      const parseMinutes = (value: string) => {
+        const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return Number.MAX_SAFE_INTEGER;
+        const rawHour = Number(match[1]);
+        const minute = Number(match[2]);
+        const meridiem = match[3].toUpperCase();
+        const hour24 = (rawHour % 12) + (meridiem === "PM" ? 12 : 0);
+        return hour24 * 60 + minute;
+      };
+
+      return parseMinutes(a.start) - parseMinutes(b.start);
+    });
+
+  const projectedDrain = unclaimedScheduleEvents.reduce(
+    (sum, event) => sum + event.cost,
+    0,
+  );
+  const crashRisk =
+    currentSpoons > 0
+      ? Math.min(100, Math.round((projectedDrain / currentSpoons) * 100))
+      : 100;
+  const predictedCrash = projectedDrain > currentSpoons;
+  const spoonsOverBudget = Math.max(0, projectedDrain - currentSpoons);
+
+  const timeline = unclaimedScheduleEvents.map((event, index) => {
+    const drainSoFar = unclaimedScheduleEvents
+      .slice(0, index + 1)
+      .reduce((sum, item) => sum + item.cost, 0);
+    return {
+      ...event,
+      remaining: currentSpoons - drainSoFar,
+    };
+  });
+
+  const crashEvent = timeline.find((event) => event.remaining <= 0) ?? null;
+
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-12">
-      <div className="max-w-lg mx-auto space-y-6">
+    <div className="min-h-screen bg-background px-grid-3 py-grid-4 md:px-grid-5">
+      <div className="max-w-3xl mx-auto space-y-grid-3">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-white">SpoonShare</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-h1 text-text-primary">SpoonShare</h1>
+          <p className="text-data text-text-secondary">
             Caregiver view for{" "}
-            <span className="text-violet-400">{owner?.label}</span>
+            <span className="text-primary">{owner?.label}</span>
           </p>
         </div>
 
         {/* Caregiver name input */}
         {!nameSet ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <h3 className="text-white font-semibold">
+          <div className="glass-card rounded-card p-grid-3 space-y-grid-2">
+            <h3 className="text-body font-semibold text-text-primary">
               What&apos;s your name?
             </h3>
-            <p className="text-sm text-slate-400">
+            <p className="text-data text-text-secondary">
               So they know who&apos;s helping.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-grid-1">
               <input
                 type="text"
                 value={caregiverName}
                 onChange={(e) => setCaregiverName(e.target.value)}
                 placeholder="Your name..."
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-violet-500 outline-none transition"
+                className="flex-1 rounded-card border border-[rgba(255,255,255,0.1)] bg-surface px-grid-2 py-grid-1 text-data text-text-primary placeholder-text-secondary/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-200"
                 onKeyDown={(e) =>
                   e.key === "Enter" &&
                   caregiverName.trim() &&
@@ -349,7 +438,7 @@ export default function CaregiverStatusPage() {
               <button
                 onClick={() => caregiverName.trim() && setNameSet(true)}
                 disabled={!caregiverName.trim()}
-                className="px-4 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-medium transition"
+                className="px-grid-2 py-grid-1 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-data font-medium transition-colors duration-200 cursor-pointer min-h-[44px]"
               >
                 Continue
               </button>
@@ -357,23 +446,35 @@ export default function CaregiverStatusPage() {
           </div>
         ) : (
           <>
+            {/* AI Insight */}
+            {profile?.educational_note && (
+              <div className="glass-card rounded-card p-grid-3 space-y-grid-1 border border-primary/20 bg-primary/5">
+                <h4 className="text-data font-semibold text-primary uppercase tracking-wide">
+                  AI Insight
+                </h4>
+                <p className="text-body text-text-primary/90 leading-relaxed">
+                  {profile.educational_note}
+                </p>
+              </div>
+            )}
+
             {/* Live Energy Status */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+            <div className="glass-card rounded-card p-grid-4 space-y-grid-3">
               <div className="text-center">
-                <p className="text-slate-400 text-sm uppercase tracking-wide">
+                <p className="text-text-secondary text-data uppercase tracking-wide">
                   Current Energy Level
                 </p>
                 <div
                   className={`text-6xl font-bold mt-2 mb-1 ${percentage < 15
-                    ? "text-red-400"
+                    ? "text-critical"
                     : percentage < 30
-                      ? "text-orange-400"
-                      : "text-white"
+                      ? "text-warning"
+                      : "text-text-primary"
                     }`}
                 >
                   {currentSpoons}
                 </div>
-                <p className="text-sm text-slate-500">
+                <p className="text-data text-text-secondary">
                   of {maxSpoons} max spoons
                 </p>
               </div>
@@ -382,8 +483,8 @@ export default function CaregiverStatusPage() {
 
               {/* Status indicator */}
               {percentage < 15 && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
-                  <p className="text-sm text-red-400 font-medium">
+                <div className="bg-critical/10 border border-critical/30 rounded-card p-grid-2 text-center">
+                  <p className="text-data text-critical font-medium">
                     🚨 Energy critical — they may need help
                   </p>
                 </div>
@@ -392,11 +493,11 @@ export default function CaregiverStatusPage() {
 
             {/* Condition tags */}
             {profile?.condition_tags && profile.condition_tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 justify-center">
+              <div className="flex flex-wrap gap-grid-1 justify-center">
                 {profile.condition_tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 text-xs border border-violet-500/30"
+                    className="px-grid-2 py-grid-1 rounded-pill bg-primary/10 text-primary text-data border border-primary/20"
                   >
                     {tag}
                   </span>
@@ -406,28 +507,28 @@ export default function CaregiverStatusPage() {
 
             {/* Claimable Tasks */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
+              <h3 className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                 Patient Schedule — Claim to Help
               </h3>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+              <div className="glass-card rounded-card p-grid-3 space-y-grid-2">
+                <p className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                   Add task
                 </p>
-                <div className="space-y-2">
+                <div className="space-y-grid-1">
                   <input
                     type="text"
                     value={newTaskName}
                     onChange={(e) => setNewTaskName(e.target.value)}
                     placeholder="Task name"
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-violet-500 outline-none transition"
+                    className="w-full rounded-card border border-[rgba(255,255,255,0.1)] bg-surface px-grid-2 py-grid-1 text-data text-text-primary placeholder-text-secondary/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-200"
                   />
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-grid-1">
                     <input
                       type="time"
                       value={newTaskTime}
                       onChange={(e) => setNewTaskTime(e.target.value)}
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                      className="rounded-card border border-[rgba(255,255,255,0.1)] bg-surface px-grid-2 py-grid-1 text-data text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-200"
                     />
                     <select
                       value={newTaskPriority}
@@ -436,7 +537,7 @@ export default function CaregiverStatusPage() {
                           e.target.value as "essential" | "important" | "flexible",
                         )
                       }
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                      className="rounded-card border border-[rgba(255,255,255,0.1)] bg-surface px-grid-2 py-grid-1 text-data text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-200"
                     >
                       <option value="essential">Essential</option>
                       <option value="important">Important</option>
@@ -452,14 +553,14 @@ export default function CaregiverStatusPage() {
                           Math.min(10, Math.max(1, Number(e.target.value) || 1)),
                         )
                       }
-                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                      className="rounded-card border border-[rgba(255,255,255,0.1)] bg-surface px-grid-2 py-grid-1 text-data text-text-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-200"
                     />
                   </div>
                 </div>
                 <button
                   onClick={addCustomTask}
                   disabled={!newTaskName.trim() || !newTaskTime}
-                  className="w-full px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium transition"
+                  className="w-full px-grid-2 py-grid-1 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-data font-medium transition-colors duration-200 cursor-pointer"
                 >
                   Add Claimable Task
                 </button>
@@ -471,34 +572,34 @@ export default function CaregiverStatusPage() {
                 return (
                   <div
                     key={event.id}
-                    className={`bg-slate-900 border rounded-xl p-4 flex items-center justify-between ${isClaimed
-                      ? "border-emerald-500/30"
-                      : "border-slate-800"
+                    className={`glass-card border rounded-card p-grid-3 flex items-center justify-between ${isClaimed
+                      ? "border-primary/30"
+                      : "border-[rgba(255,255,255,0.1)]"
                       }`}
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-white font-medium text-sm">
+                        <h4 className="text-text-primary font-medium text-data">
                           {event.title}
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 text-xs border border-orange-500/30">
+                        <span className="px-grid-1 py-[2px] rounded-pill bg-warning/15 text-warning text-[12px] border border-warning/30">
                           {event.cost} spoons
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-[12px] text-text-secondary mt-1">
                         {event.start} · {event.priority}
                       </p>
                     </div>
 
                     {isClaimed ? (
-                      <span className="text-xs text-emerald-400 font-medium">
+                      <span className="text-[12px] text-primary font-medium">
                         Claimed ✓
                       </span>
                     ) : (
                       <button
                         onClick={() => claimTask(event)}
                         disabled={claiming === event.id}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-medium transition"
+                        className="px-grid-2 py-grid-1 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-[12px] font-medium transition-colors duration-200 cursor-pointer"
                       >
                         {claiming === event.id
                           ? "Claiming..."
@@ -512,14 +613,14 @@ export default function CaregiverStatusPage() {
 
             {/* Claimed history */}
             {dailyLog?.claimed_tasks && dailyLog.claimed_tasks.length > 0 && (
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs text-emerald-400 font-semibold uppercase tracking-wide">
+              <div className="glass-card border border-primary/20 rounded-card p-grid-3 space-y-grid-1">
+                <h4 className="text-data text-primary font-semibold uppercase tracking-wide">
                   Support Activity
                 </h4>
                 {dailyLog.claimed_tasks.map((claim, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className="text-emerald-400">💚</span>
-                    <span className="text-slate-300">
+                  <div key={i} className="flex items-center gap-grid-1 text-data">
+                    <span className="text-primary">💚</span>
+                    <span className="text-text-primary">
                       {claim.caregiver_name} claimed{" "}
                       <strong>{claim.event_title}</strong> (+
                       {claim.spoon_cost} spoons)
@@ -531,28 +632,28 @@ export default function CaregiverStatusPage() {
 
             {/* Why is my budget? (caregiver read-only) */}
             {dailyLog && (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
-                <h3 className="text-sm font-semibold text-slate-200">
+              <div className="glass-card rounded-card p-grid-3 space-y-grid-2">
+                <h3 className="text-body font-semibold text-text-primary">
                   Why is my budget {currentSpoons}?
                 </h3>
 
                 <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  <h4 className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                     Budget Breakdown
                   </h4>
-                  <div className="grid grid-cols-2 gap-y-1 text-sm">
-                    <span className="text-slate-400">Effective Baseline</span>
-                    <span className="text-right text-slate-100 font-mono">20 spoons</span>
+                  <div className="grid grid-cols-2 gap-y-1 text-data">
+                    <span className="text-text-secondary">Effective Baseline</span>
+                    <span className="text-right text-text-primary font-mono">20 spoons</span>
 
-                    <span className="text-slate-400">Sleep Factor</span>
-                    <span className="text-right text-slate-100 font-mono">
+                    <span className="text-text-secondary">Sleep Factor</span>
+                    <span className="text-right text-text-primary font-mono">
                       x {(dailyLog.sleep_score / 10).toFixed(1)} ({Math.round((dailyLog.sleep_score / 10) * 100)}%)
                     </span>
 
                     {dailyLog.weather_deduction > 0 && (
                       <>
-                        <span className="text-amber-400">Weather Deduction</span>
-                        <span className="text-right text-amber-400 font-mono">
+                        <span className="text-warning">Weather Deduction</span>
+                        <span className="text-right text-warning font-mono">
                           -{dailyLog.weather_deduction} spoons
                         </span>
                       </>
@@ -560,42 +661,42 @@ export default function CaregiverStatusPage() {
 
                     {dailyLog.pain_score > 0 && (
                       <>
-                        <span className="text-rose-400">Pain Deduction</span>
-                        <span className="text-right text-rose-400 font-mono">
+                        <span className="text-critical">Pain Deduction</span>
+                        <span className="text-right text-critical font-mono">
                           -{(dailyLog.pain_score / 2).toFixed(1)} spoons
                         </span>
                       </>
                     )}
 
-                    <span className="text-slate-100 font-semibold border-t border-slate-800 pt-2">
+                    <span className="text-text-primary font-semibold border-t border-[rgba(255,255,255,0.1)] pt-2">
                       Starting Budget
                     </span>
-                    <span className="text-right text-slate-100 font-semibold font-mono border-t border-slate-800 pt-2">
+                    <span className="text-right text-text-primary font-semibold font-mono border-t border-[rgba(255,255,255,0.1)] pt-2">
                       {dailyLog.starting_spoons} spoons
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t border-slate-800 pt-3">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                <div className="space-y-2 border-t border-[rgba(255,255,255,0.1)] pt-3">
+                  <h4 className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                     How you got to current spoons
                   </h4>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Max daily spoons</span>
-                    <span className="text-slate-100 font-mono">{maxDailySpoons}</span>
+                  <div className="flex items-center justify-between text-data">
+                    <span className="text-text-secondary">Max daily spoons</span>
+                    <span className="text-text-primary font-mono">{maxDailySpoons}</span>
                   </div>
 
                   {morningAdjustment > 0 && (
-                    <div className="flex items-center justify-between text-sm text-amber-400">
+                    <div className="flex items-center justify-between text-data text-warning">
                       <span>− Morning adjustments</span>
                       <span className="font-mono">−{morningAdjustment}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">= Starting today</span>
-                    <span className="text-slate-100 font-mono">{dailyLog.starting_spoons}</span>
+                  <div className="flex items-center justify-between text-data">
+                    <span className="text-text-secondary">= Starting today</span>
+                    <span className="text-text-primary font-mono">{dailyLog.starting_spoons}</span>
                   </div>
 
                   {activityRows.map((row) => {
@@ -606,7 +707,7 @@ export default function CaregiverStatusPage() {
                     return (
                       <div
                         key={row.id}
-                        className={`flex items-center justify-between gap-2 text-sm ${isGain ? "text-emerald-400" : "text-rose-400"}`}
+                        className={`flex items-center justify-between gap-2 text-data ${isGain ? "text-primary" : "text-critical"}`}
                       >
                         <span className="truncate">
                           {formatTime(row.at)} · {sign} {row.label}
@@ -616,37 +717,138 @@ export default function CaregiverStatusPage() {
                     );
                   })}
 
-                  <div className="flex items-center justify-between text-sm font-semibold border-t border-slate-800 pt-2">
-                    <span className="text-slate-100">= Current spoons</span>
-                    <span className="text-slate-100 font-mono">{currentSpoons}</span>
+                  <div className="flex items-center justify-between text-data font-semibold border-t border-[rgba(255,255,255,0.1)] pt-2">
+                    <span className="text-text-primary">= Current spoons</span>
+                    <span className="text-text-primary font-mono">{currentSpoons}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* AI Insight */}
-            {profile?.educational_note && (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  AI Insight
-                </h4>
-                <p className="text-sm text-slate-200 leading-relaxed">
-                  {profile.educational_note}
-                </p>
+            {/* Energy Forecast (caregiver) */}
+            {unclaimedScheduleEvents.length > 0 && (
+              <div className="space-y-grid-2">
+                {predictedCrash && (
+                  <div className="bg-critical/10 border-2 border-critical/40 rounded-card p-grid-3 text-center space-y-grid-1">
+                    <h3 className="text-h2 font-bold text-critical">
+                      Energy Crash Predicted
+                    </h3>
+                    <p className="text-critical/80 text-data">
+                      You&apos;re projected to crash
+                      {crashEvent ? (
+                        <>
+                          {" "}at <span className="font-bold font-mono">{crashEvent.start}</span> during <span className="font-bold">{crashEvent.title}</span>
+                        </>
+                      ) : (
+                        " today"
+                      )}
+                    </p>
+                    <p className="text-critical/50 text-[12px] font-mono">
+                      {spoonsOverBudget} spoons over budget
+                    </p>
+                  </div>
+                )}
+
+                <section className="glass-card rounded-card p-grid-3 space-y-grid-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-grid-2">
+                      <svg
+                        className={`w-6 h-6 ${crashRisk > 70 ? "text-critical" : crashRisk > 40 ? "text-warning" : "text-primary"}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+                      </svg>
+                      <div>
+                        <h3 className="text-h2 text-text-primary">Energy Weather Forecast</h3>
+                        <p className="text-data text-text-secondary">
+                          {forecastAudit?.risk_summary ??
+                            (predictedCrash
+                              ? "The patient is at a high risk of energy crash due to projected drain exceeding available spoons."
+                              : "Projected schedule is within the available spoon budget for today.")}
+                        </p>
+                        <p className="text-[12px] text-text-secondary/80">
+                          Event spoon costs use the same API-backed forecast source as the patient view.
+                        </p>
+                      </div>
+                    </div>
+                    {usingDemoForecast && (
+                      <span className="px-grid-1 py-[4px] rounded bg-warning/15 text-warning text-[12px]">
+                        Demo Data
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-grid-2">
+                    <div className="text-center">
+                      <p className="text-[24px] font-bold font-mono text-text-primary">{currentSpoons}</p>
+                      <p className="text-[12px] text-text-secondary">Starting Budget</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-[24px] font-bold font-mono ${projectedDrain > currentSpoons ? "text-critical" : "text-text-primary"}`}>
+                        {projectedDrain}
+                      </p>
+                      <p className="text-[12px] text-text-secondary">Projected Drain</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`text-[24px] font-bold font-mono ${crashRisk > 70 ? "text-critical" : crashRisk > 40 ? "text-warning" : "text-primary"}`}>
+                        {crashRisk}%
+                      </p>
+                      <p className="text-[12px] text-text-secondary">Crash Risk</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-grid-1">
+                    <p className="text-[12px] text-text-secondary mb-grid-1 uppercase tracking-wide">
+                      Energy Drain Timeline
+                    </p>
+                    <div className="space-y-grid-1">
+                      {timeline.map((event) => {
+                        const percentageRemaining =
+                          currentSpoons > 0
+                            ? Math.max(0, (event.remaining / currentSpoons) * 100)
+                            : 0;
+
+                        return (
+                          <div key={event.id} className="flex items-center gap-grid-2 text-data">
+                            <span className="text-text-secondary w-[64px] text-right shrink-0 font-mono">
+                              {event.start}
+                            </span>
+                            <div className="flex-1">
+                              <div className="h-grid-1 bg-surface rounded-pill overflow-hidden">
+                                <div
+                                  className={`h-full rounded-pill ${event.remaining <= 0 ? "bg-critical" : event.remaining <= 3 ? "bg-warning" : "bg-primary"}`}
+                                  style={{ width: `${percentageRemaining}%` }}
+                                />
+                              </div>
+                            </div>
+                            <span className={`w-grid-4 text-right text-[12px] font-mono ${event.remaining <= 0 ? "text-critical" : "text-text-secondary"}`}>
+                              {event.remaining}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
               </div>
             )}
 
             {/* Spoon Ledger (read-only caregiver view) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="glass-card rounded-card p-grid-3 space-y-grid-2">
+              <h4 className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                 Spoon Ledger
               </h4>
               {manualEvents.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-body text-text-secondary">
                   No manual events logged yet today.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-grid-1">
                   {manualEvents.map((event) => {
                     const isRest = event.category === "rest";
                     const sign = isRest ? "+" : "−";
@@ -654,13 +856,13 @@ export default function CaregiverStatusPage() {
                     return (
                       <div
                         key={event.id}
-                        className="flex items-center justify-between text-sm"
+                        className="flex items-center justify-between text-data"
                       >
-                        <span className="text-slate-300 truncate pr-3">
+                        <span className="text-text-primary truncate pr-3">
                           {formatTime(event.start_time)} · {event.title} · {categoryLabel[event.category] ?? event.category}
                         </span>
                         <span
-                          className={`font-mono shrink-0 ${isRest ? "text-emerald-400" : "text-rose-400"}`}
+                          className={`font-mono shrink-0 ${isRest ? "text-primary" : "text-critical"}`}
                         >
                           {sign}{event.spoon_cost}
                         </span>
@@ -672,17 +874,17 @@ export default function CaregiverStatusPage() {
             </div>
 
             {/* Clinical Brief access */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="glass-card rounded-card p-grid-3 space-y-grid-2">
+              <h4 className="text-data font-semibold text-text-secondary uppercase tracking-wide">
                 Clinical Brief
               </h4>
               {latestReport?.share_token ? (
                 <>
-                  <p className="text-sm text-slate-300">
+                  <p className="text-body text-text-primary">
                     Latest generated report from {new Date(latestReport.created_at).toLocaleDateString()}.
                   </p>
                   {latestReport.report_data?.clinician_message && (
-                    <p className="text-sm text-slate-400 leading-relaxed">
+                    <p className="text-data text-text-secondary leading-relaxed">
                       {latestReport.report_data.clinician_message}
                     </p>
                   )}
@@ -690,13 +892,13 @@ export default function CaregiverStatusPage() {
                     href={`/report/shared/${latestReport.share_token}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-medium transition"
+                    className="inline-flex px-grid-2 py-grid-1 rounded-card bg-primary hover:bg-primary/80 text-background text-[12px] font-medium transition-colors duration-200"
                   >
                     Open Clinical Brief
                   </a>
                 </>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-body text-text-secondary">
                   No shared clinical brief is currently available.
                 </p>
               )}
@@ -710,7 +912,7 @@ export default function CaregiverStatusPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-medium z-50"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-primary text-background px-grid-3 py-grid-2 rounded-card shadow-lg text-data font-medium z-50"
           >
             {toast}
           </motion.div>

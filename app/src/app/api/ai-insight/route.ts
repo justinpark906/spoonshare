@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { ChatGroq } from "@langchain/groq";
+import { getCalendarEvents } from "@/lib/google-calendar";
 
 export async function POST() {
   try {
@@ -27,7 +28,7 @@ export async function POST() {
     const { data: dailyLog } = await supabase
       .from("daily_logs")
       .select(
-        "starting_spoons, current_spoons, sleep_score, pain_score, weather_deduction, pressure_hpa, temperature_c, deduction_reasons",
+        "starting_spoons, current_spoons, sleep_score, pain_score, weather_deduction, pressure_hpa, temperature_c, deduction_reasons, claimed_tasks",
       )
       .eq("user_id", user.id)
       .eq("date", today)
@@ -43,6 +44,11 @@ export async function POST() {
       .gte("start_time", dayStart)
       .lte("start_time", dayEnd)
       .order("start_time", { ascending: true });
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const providerToken = session?.provider_token;
 
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) {
@@ -67,20 +73,57 @@ export async function POST() {
     const weatherDeduction = dailyLog?.weather_deduction ?? 0;
     const temperature = dailyLog?.temperature_c ?? null;
     const events = manualEvents ?? [];
+    const nowTs = Date.now();
+    const claimedTasks =
+      (dailyLog?.claimed_tasks as
+        | Array<{ spoon_cost?: number; event_title?: string; caregiver_name?: string }>
+        | undefined) ?? [];
 
-    const totalSpent = events.reduce(
-      (sum, e) => sum + (e.category === "rest" ? 0 : e.spoon_cost),
-      0,
-    );
-    const eventsDescription =
-      events.length > 0
-        ? events
+    const spentSoFar = events.reduce((sum, e) => {
+      const ts = new Date(e.start_time).getTime();
+      if (!Number.isFinite(ts) || ts > nowTs) return sum;
+      return e.category === "rest" ? sum : sum + Number(e.spoon_cost ?? 0);
+    }, 0);
+
+    const restoredSoFar =
+      events.reduce((sum, e) => {
+        const ts = new Date(e.start_time).getTime();
+        if (!Number.isFinite(ts) || ts > nowTs) return sum;
+        return e.category === "rest" ? sum + Number(e.spoon_cost ?? 0) : sum;
+      }, 0) +
+      claimedTasks.reduce((sum, c) => sum + Number(c.spoon_cost ?? 0), 0);
+
+    const upcomingManual = events.filter((e) => {
+      const ts = new Date(e.start_time).getTime();
+      return Number.isFinite(ts) && ts >= nowTs;
+    });
+
+    let upcomingEventsDescription = "No upcoming events in the next 24 hours.";
+    if (providerToken) {
+      try {
+        const googleEvents = await getCalendarEvents(providerToken);
+        if (googleEvents.length > 0) {
+          upcomingEventsDescription = googleEvents
+            .slice(0, 8)
             .map(
               (e) =>
-                `- ${e.title} (${e.category}, ${e.spoon_cost} spoons at ${new Date(e.start_time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`,
+                `- ${e.title} at ${new Date(e.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} (${e.duration_minutes} min)`,
             )
-            .join("\n")
-        : "No events logged yet today.";
+            .join("\n");
+        }
+      } catch {
+        // ignore and fall back to manual upcoming list
+      }
+    }
+
+    if (upcomingEventsDescription.startsWith("No upcoming") && upcomingManual.length > 0) {
+      upcomingEventsDescription = upcomingManual
+        .map(
+          (e) =>
+            `- ${e.title} (${e.category}, ${e.spoon_cost} spoons at ${new Date(e.start_time).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })})`,
+        )
+        .join("\n");
+    }
 
     const tierGuidance =
       impactTier === 3
@@ -113,7 +156,9 @@ Rules:
 - risk_level "medium" = warning signs (low sleep, high pain, busy schedule, near budget limit)
 - risk_level "high" = crash likely (spoons nearly depleted, poor recovery)
 - If risk is low, action_type must be "none"
-- The insight must reference actual numbers from the data
+- The insight must reference actual numbers from the data and must not invent numbers
+- Use Current spoons remaining as the authoritative current value
+- If upcoming events are from Google list without explicit spoon costs, do not cite spoon costs for those upcoming events
 
 ${tierGuidance}`,
       },
@@ -127,13 +172,14 @@ ${tierGuidance}`,
 Today's Energy State:
 - Starting budget: ${startingSpoons} spoons
 - Current spoons remaining: ${currentSpoons} spoons
+- Spent so far (non-rest): ${spentSoFar} spoons
+- Restored so far (rest + caregiver claims): ${restoredSoFar} spoons
 - Sleep quality: ${sleepScore}/10
 - Pain level: ${painScore}/10
 - Weather deduction: ${weatherDeduction} spoons${temperatureNote}
 
-Today's Schedule:
-${eventsDescription}
-Total spent so far: ${totalSpent} spoons
+Upcoming Schedule (next 24 hours):
+${upcomingEventsDescription}
 
 Provide your single most important insight as JSON.`,
       },

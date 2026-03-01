@@ -36,12 +36,12 @@ export default function ReportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-12">
+    <div className="min-h-screen bg-background px-grid-3 py-grid-4 md:px-grid-5">
       <div className="max-w-3xl mx-auto">
         {/* Back button */}
         <button
-          onClick={() => router.push("/")}
-          className="text-sm text-slate-400 hover:text-white transition mb-6 flex items-center gap-1"
+          onClick={() => router.push("/dashboard")}
+          className="text-data text-text-secondary hover:text-text-primary transition-colors duration-200 mb-grid-3 flex items-center gap-grid-1 cursor-pointer"
         >
           <svg
             className="w-4 h-4"
@@ -66,13 +66,13 @@ export default function ReportPage() {
             onClose={() => setReport(null)}
           />
         ) : (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center space-y-6">
+          <div className="glass-card rounded-card p-grid-4 text-center space-y-grid-3">
             <div className="text-5xl">📋</div>
             <div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-h1 font-bold text-text-primary">
                 Clinical Brief Generator
               </h1>
-              <p className="mt-2 text-slate-400 max-w-md mx-auto">
+              <p className="mt-grid-1 text-body text-text-secondary max-w-md mx-auto">
                 Generate a professional, HPO-mapped medical summary from your
                 last 7 days of energy data. Share it with your doctor to prove
                 the correlation between your triggers and symptoms.
@@ -80,7 +80,7 @@ export default function ReportPage() {
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm max-w-md mx-auto">
+              <div className="bg-critical/10 border border-critical/30 text-critical rounded-card p-grid-2 text-data max-w-md mx-auto">
                 {error}
               </div>
             )}
@@ -88,25 +88,25 @@ export default function ReportPage() {
             <button
               onClick={generateReport}
               disabled={loading}
-              className="px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-lg transition"
+              className="px-grid-4 py-grid-2 rounded-pill bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed text-background font-semibold text-body transition-colors duration-200 cursor-pointer"
             >
               {loading
                 ? "Analyzing 7 days of data..."
                 : "Generate My Clinical Brief"}
             </button>
 
-            <div className="grid grid-cols-3 gap-4 max-w-md mx-auto pt-4">
+            <div className="grid grid-cols-3 gap-grid-2 max-w-md mx-auto pt-grid-2">
               <div className="text-center">
-                <p className="text-lg font-semibold text-white">HPO</p>
-                <p className="text-xs text-slate-500">Standard Codes</p>
+                <p className="text-h2 font-semibold text-text-primary">HPO</p>
+                <p className="text-[12px] text-text-secondary">Standard Codes</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-white">7 Days</p>
-                <p className="text-xs text-slate-500">Data Analysis</p>
+                <p className="text-h2 font-semibold text-text-primary">7 Days</p>
+                <p className="text-[12px] text-text-secondary">Data Analysis</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-white">PDF</p>
-                <p className="text-xs text-slate-500">Export Ready</p>
+                <p className="text-h2 font-semibold text-text-primary">PDF</p>
+                <p className="text-[12px] text-text-secondary">Export Ready</p>
               </div>
             </div>
           </div>

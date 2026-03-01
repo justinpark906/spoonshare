@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGroq } from "@langchain/groq";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getWeeklySummary } from "@/lib/weekly-summary";
 import { getHPOReferenceContext } from "@/lib/hpo-mapping";
+
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
 
 const clinicalReportSchema = z.object({
   pacing_adherence: z
@@ -39,6 +41,59 @@ const clinicalReportSchema = z.object({
 });
 
 export type ClinicalReport = z.infer<typeof clinicalReportSchema>;
+
+function hasValidGroqKey(): boolean {
+  const key = process.env.GROQ_API_KEY?.trim();
+  if (!key || key.length < 20) return false;
+  if (/your_groq|your-groq|placeholder|example\.com/i.test(key)) return false;
+  return true;
+}
+
+function getFallbackReport(
+  summary: Awaited<ReturnType<typeof getWeeklySummary>>,
+): ClinicalReport {
+  const primaryTrigger =
+    summary.stats.total_weather_deductions > 0
+      ? "Environmental"
+      : summary.stats.avg_pain >= 6
+        ? "Pain-Related"
+        : summary.stats.avg_sleep <= 4
+          ? "Sleep-Related"
+          : "Activity-Based";
+
+  const secondaryTrigger =
+    summary.stats.avg_pain >= 5 && primaryTrigger !== "Pain-Related"
+      ? "Pain-Related"
+      : summary.stats.avg_sleep <= 5 && primaryTrigger !== "Sleep-Related"
+        ? "Sleep-Related"
+        : null;
+
+  const severityTrend: ClinicalReport["severity_trend"] =
+    summary.stats.days_with_crashes >= 3
+      ? "worsening"
+      : summary.stats.days_with_crashes === 0 && summary.stats.pacing_adherence >= 80
+        ? "improving"
+        : "stable";
+
+  return {
+    pacing_adherence: summary.stats.pacing_adherence,
+    primary_trigger: primaryTrigger,
+    secondary_trigger: secondaryTrigger,
+    clinical_observations: [
+      `Frequent low-energy intervals suggest pacing instability over the period (${summary.stats.days_with_crashes} crash day(s)).`,
+      `Average sleep score was ${summary.stats.avg_sleep}/10 with mean pain ${summary.stats.avg_pain}/10, indicating measurable recovery burden.`,
+      `Weather-associated deductions totaled ${summary.stats.total_weather_deductions} spoons across the reporting window.`,
+    ],
+    clinician_message:
+      "Weekly SpoonShare data demonstrates reproducible symptom-energy coupling with identifiable trigger patterns. Objective pacing adherence and crash-day frequency can be used to guide graded scheduling and symptom-informed activity planning.",
+    severity_trend: severityTrend,
+    recommendations: [
+      "Prioritize low-cost tasks during higher-risk afternoon windows and reserve recovery buffers between moderate/high demand events.",
+      "Introduce planned rest intervals after activities predicted to exceed 4 spoons and monitor next-day rebound.",
+      "Track sleep and pain trends daily to calibrate morning budget decisions before fixed commitments.",
+    ],
+  };
+}
 
 export async function POST() {
   try {
@@ -126,58 +181,69 @@ Please generate the structured clinical report.`,
       ],
     ]);
 
-    const model = new ChatOpenAI({
-      modelName: "gpt-4o-mini",
-      temperature: 0.2,
-    });
-
-    const chain = prompt.pipe(model).pipe(parser);
+    let report: ClinicalReport;
 
     // Format daily breakdown
     const dailyBreakdown = summary.daily_logs.length > 0
       ? summary.daily_logs
-          .map(
-            (d) =>
-              `${d.date}: Started ${d.starting_spoons}, ended ${d.current_spoons ?? "N/A"}, sleep ${d.sleep_score}/10, pain ${d.pain_score}/10, weather -${d.weather_deduction}${d.deduction_reasons.length > 0 ? ` (${d.deduction_reasons.join("; ")})` : ""}`
-          )
-          .join("\n")
+        .map(
+          (d) =>
+            `${d.date}: Started ${d.starting_spoons}, ended ${d.current_spoons ?? "N/A"}, sleep ${d.sleep_score}/10, pain ${d.pain_score}/10, weather -${d.weather_deduction}${d.deduction_reasons.length > 0 ? ` (${d.deduction_reasons.join("; ")})` : ""}`
+        )
+        .join("\n")
       : "No daily logs recorded this week (demo mode)";
 
     const weatherObservations = summary.weather_logs.length > 0
       ? summary.weather_logs
-          .map(
-            (w) =>
-              `${new Date(w.recorded_at).toLocaleDateString()}: ${w.pressure_hpa} hPa, ${w.temperature_c}°C, ${w.weather_condition}`
-          )
-          .join("\n")
+        .map(
+          (w) =>
+            `${new Date(w.recorded_at).toLocaleDateString()}: ${w.pressure_hpa} hPa, ${w.temperature_c}°C, ${w.weather_condition}`
+        )
+        .join("\n")
       : "No weather data recorded (demo mode)";
 
     const patientNotes = summary.user_notes.length > 0
       ? summary.user_notes.map((n) => `${n.date}: "${n.content}"`).join("\n")
       : "No patient notes this week";
 
-    const report = await chain.invoke({
-      hpo_reference: hpoContext,
-      condition_tags: (profile.condition_tags || []).join(", ") || "Not specified",
-      baseline_spoons: profile.baseline_spoons.toString(),
-      current_multiplier: profile.current_multiplier.toString(),
-      symptom_data: JSON.stringify(profile.symptom_data || {}),
-      period_start: summary.period.start,
-      period_end: summary.period.end,
-      avg_starting: summary.stats.avg_starting_spoons.toString(),
-      avg_ending: summary.stats.avg_ending_spoons.toString(),
-      crash_days: summary.stats.days_with_crashes.toString(),
-      total_days: summary.daily_logs.length.toString(),
-      weather_deductions: summary.stats.total_weather_deductions.toString(),
-      avg_sleep: summary.stats.avg_sleep.toString(),
-      avg_pain: summary.stats.avg_pain.toString(),
-      pacing_adherence: summary.stats.pacing_adherence.toString(),
-      caregiver_claims: summary.stats.total_caregiver_claims.toString(),
-      daily_breakdown: dailyBreakdown,
-      weather_observations: weatherObservations,
-      patient_notes: patientNotes,
-      format_instructions: parser.getFormatInstructions(),
-    });
+    if (hasValidGroqKey()) {
+      try {
+        const model = new ChatGroq({
+          model: GROQ_MODEL,
+          temperature: 0.2,
+          apiKey: process.env.GROQ_API_KEY,
+        });
+
+        const chain = prompt.pipe(model).pipe(parser);
+        report = await chain.invoke({
+          hpo_reference: hpoContext,
+          condition_tags: (profile.condition_tags || []).join(", ") || "Not specified",
+          baseline_spoons: profile.baseline_spoons.toString(),
+          current_multiplier: profile.current_multiplier.toString(),
+          symptom_data: JSON.stringify(profile.symptom_data || {}),
+          period_start: summary.period.start,
+          period_end: summary.period.end,
+          avg_starting: summary.stats.avg_starting_spoons.toString(),
+          avg_ending: summary.stats.avg_ending_spoons.toString(),
+          crash_days: summary.stats.days_with_crashes.toString(),
+          total_days: summary.daily_logs.length.toString(),
+          weather_deductions: summary.stats.total_weather_deductions.toString(),
+          avg_sleep: summary.stats.avg_sleep.toString(),
+          avg_pain: summary.stats.avg_pain.toString(),
+          pacing_adherence: summary.stats.pacing_adherence.toString(),
+          caregiver_claims: summary.stats.total_caregiver_claims.toString(),
+          daily_breakdown: dailyBreakdown,
+          weather_observations: weatherObservations,
+          patient_notes: patientNotes,
+          format_instructions: parser.getFormatInstructions(),
+        });
+      } catch (groqErr) {
+        console.error("Generate report AI fallback:", groqErr);
+        report = getFallbackReport(summary);
+      }
+    } else {
+      report = getFallbackReport(summary);
+    }
 
     // Save report to Supabase for sharing
     const fullReportData = {

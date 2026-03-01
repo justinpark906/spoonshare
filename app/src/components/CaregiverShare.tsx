@@ -28,9 +28,12 @@ export default function CaregiverShare() {
   }, [profile]);
 
   async function loadLinks() {
+    if (!profile) return;
+
     const { data } = await supabase
       .from("shared_access")
       .select("*")
+      .eq("owner_id", profile.id)
       .order("created_at", { ascending: false });
 
     if (data) setLinks(data);
@@ -53,7 +56,12 @@ export default function CaregiverShare() {
   }
 
   async function deleteLink(id: string) {
-    await supabase.from("shared_access").delete().eq("id", id);
+    if (!profile) return;
+    await supabase
+      .from("shared_access")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", profile.id);
     setLinks((prev) => prev.filter((l) => l.id !== id));
   }
 
@@ -150,7 +158,7 @@ export default function CaregiverShare() {
                   {links.map((link) => (
                     <div
                       key={link.id}
-                      className="flex items-center justify-between bg-surface rounded-card px-grid-2 py-grid-2"
+                      className="flex items-center justify-between rounded-card border border-[rgba(255,255,255,0.08)] bg-surface px-grid-2 py-grid-1.5"
                     >
                       <div>
                         <p className="text-data font-medium text-text-primary">
@@ -163,11 +171,10 @@ export default function CaregiverShare() {
                       <div className="flex items-center gap-grid-1">
                         <button
                           onClick={() => copyLink(link.access_token)}
-                          className={`px-grid-2 py-grid-1 rounded text-[12px] font-medium transition-colors duration-200 cursor-pointer min-h-[44px] ${
-                            copied === link.access_token
-                              ? "bg-primary/20 text-primary"
-                              : "bg-[rgba(255,255,255,0.05)] text-text-secondary hover:bg-[rgba(255,255,255,0.1)]"
-                          }`}
+                          className={`px-grid-2 py-grid-1 rounded text-[12px] font-medium transition-colors duration-200 cursor-pointer min-h-[44px] ${copied === link.access_token
+                            ? "bg-primary/20 text-primary"
+                            : "bg-[rgba(255,255,255,0.05)] text-text-secondary hover:bg-[rgba(255,255,255,0.1)]"
+                            }`}
                         >
                           {copied === link.access_token
                             ? "Copied!"

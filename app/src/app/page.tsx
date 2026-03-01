@@ -13,6 +13,12 @@ export default function LandingPage() {
     syncWithSupabase();
   }, [syncWithSupabase]);
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">

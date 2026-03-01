@@ -6,7 +6,6 @@ import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   getCalendarEvents,
-  getDemoCalendarEvents,
   CalendarEvent,
 } from "@/lib/google-calendar";
 
@@ -122,9 +121,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Fetch calendar events — try real Google token, fall back to demo
+    // 4. Fetch events for next 24h — Google first, then user's non-rest manual events
     let events: CalendarEvent[];
-    let usingDemo = false;
+    const usingDemo = false;
+    const nowIso = new Date().toISOString();
+    const tomorrowIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     const {
       data: { session },
@@ -135,13 +136,46 @@ export async function POST(request: Request) {
       try {
         events = await getCalendarEvents(providerToken);
       } catch {
-        // Token expired or invalid — fall back to demo
-        events = getDemoCalendarEvents();
-        usingDemo = true;
+        events = [];
       }
     } else {
-      events = getDemoCalendarEvents();
-      usingDemo = true;
+      events = [];
+    }
+
+    if (!events || events.length === 0) {
+      const { data: manualEvents } = await supabase
+        .from("manual_events")
+        .select("id, title, start_time, end_time, category, spoon_cost")
+        .eq("user_id", user.id)
+        .neq("category", "rest")
+        .gte("start_time", nowIso)
+        .lte("start_time", tomorrowIso)
+        .order("start_time", { ascending: true });
+
+      if (manualEvents && manualEvents.length > 0) {
+        events = manualEvents.map((e) => {
+          const startIso = new Date(e.start_time).toISOString();
+          const endIso = e.end_time
+            ? new Date(e.end_time).toISOString()
+            : new Date(new Date(e.start_time).getTime() + 30 * 60 * 1000).toISOString();
+          const durationMinutes = Math.max(
+            15,
+            Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / (1000 * 60)),
+          );
+
+          return {
+            id: String(e.id),
+            title: String(e.title),
+            start: startIso,
+            end: endIso,
+            duration_minutes: durationMinutes,
+            location: null,
+            is_all_day: false,
+          } as CalendarEvent;
+        });
+      } else {
+        events = [];
+      }
     }
 
     if (events.length === 0) {
