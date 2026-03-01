@@ -27,7 +27,6 @@ export default function HomePage() {
     syncWithSupabase,
     setScheduleAudit,
     setAuditLoading,
-    logout,
   } = useSpoonStore();
   const router = useRouter();
   const supabase = createClient();
@@ -85,12 +84,6 @@ export default function HomePage() {
     }
   }, [effectiveSpoons, setScheduleAudit, setAuditLoading]);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    logout();
-    router.push("/login");
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -105,16 +98,6 @@ export default function HomePage() {
     return (
       <div className="min-h-screen bg-background px-grid-3 py-[48px] md:px-grid-5">
         <div className="max-w-4xl mx-auto space-y-grid-4">
-          <header className="flex items-center justify-between">
-            <h1 className="text-h1 text-text-primary">SpoonShare</h1>
-            <button
-              onClick={() => router.push("/login")}
-              className="px-grid-2 py-grid-1 rounded-pill bg-primary hover:bg-primary/80 text-background text-data font-medium transition-colors duration-200 cursor-pointer"
-            >
-              Log In
-            </button>
-          </header>
-
           <section className="glass-card rounded-card p-grid-4 space-y-grid-2">
             <p className="text-data uppercase tracking-wide text-text-secondary">
               Energy-aware care, built for real life
@@ -136,7 +119,7 @@ export default function HomePage() {
               </button>
               <button
                 onClick={() => router.push("/login")}
-                className="px-grid-3 py-[10px] rounded-pill border border-[rgba(255,255,255,0.15)] text-text-primary hover:bg-white/5 font-medium transition-colors duration-200 cursor-pointer"
+                className="px-grid-3 py-[10px] rounded-pill border border-primary/40 text-text-primary hover:bg-primary-pale/30 font-medium transition-colors duration-200 cursor-pointer"
               >
                 Sign In
               </button>
@@ -195,17 +178,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background px-grid-3 py-[48px] md:px-grid-5">
       <div className="max-w-2xl mx-auto space-y-grid-4">
-        {/* Header — MASTER.md H1: 24px Semibold -0.02em */}
-        <header className="flex items-center justify-between">
-          <h1 className="text-h1 text-text-primary">SpoonShare</h1>
-          <button
-            onClick={handleLogout}
-            className="text-data text-text-secondary hover:text-text-primary transition-colors duration-200 cursor-pointer"
-          >
-            Sign Out
-          </button>
-        </header>
-
         {/* Onboarding CTA */}
         {!hasCompletedOnboarding && (
           <div className="glass-card p-grid-3 text-center border-primary/30">

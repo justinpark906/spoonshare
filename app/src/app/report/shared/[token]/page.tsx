@@ -45,19 +45,19 @@ export default function SharedReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-slate-400">Loading report...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-text-secondary">Loading report...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <div className="text-4xl">📋</div>
-          <h1 className="text-xl font-bold text-white">Report Unavailable</h1>
-          <p className="text-slate-400">{error}</p>
+          <h1 className="text-xl font-bold text-text-primary">Report Unavailable</h1>
+          <p className="text-text-secondary">{error}</p>
         </div>
       </div>
     );
@@ -66,10 +66,10 @@ export default function SharedReportPage() {
   if (!report) return null;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-12">
+    <div className="min-h-screen bg-background px-4 py-12">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-6">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-text-secondary">
             SpoonShare — Shared Clinical Brief (expires in 24 hours)
           </p>
         </div>

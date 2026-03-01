@@ -9,14 +9,21 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // MASTER.md — OLED Dark Strategy
-        background: "#020617",
-        surface: "#0f172a",
-        primary: "#2dd4bf",
-        warning: "#f59e0b",
-        critical: "#e11d48",
-        "text-primary": "#f8fafc",
-        "text-secondary": "#94a3b8",
+        // Aligned to logo: off-white background, teal spoon, warm red/orange heart, charcoal text
+        background: "#F8F8F8",
+        surface: "#FFFFFF",
+        "surface-muted": "#F0F5F4",
+        primary: "#4BA8A7",
+        "primary-light": "#71C8BF",
+        "primary-pale": "#C4F0E8",
+        accent: "#FF6B6B",
+        "accent-glow": "#FFD700",
+        "accent-soft": "#FFECB3",
+        "text-primary": "#4C525A",
+        "text-secondary": "#595F66",
+        "text-muted": "#6B7280",
+        warning: "#F59E0B",
+        critical: "#E11D48",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],

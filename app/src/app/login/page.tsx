@@ -70,31 +70,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
-        {/* Logo / Brand */}
+        {/* Tagline only — logo is in AppHeader */}
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-white tracking-tight">
-            SpoonShare
-          </h1>
-          <p className="mt-2 text-slate-400">
+          <p className="text-body text-text-secondary">
             AI-powered energy management for rare disease patients
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6 shadow-xl">
-          <h2 className="text-xl font-semibold text-white">
+        <div className="bg-surface border border-primary-pale/50 rounded-2xl p-8 space-y-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-text-primary">
             {isSignUp ? "Create your account" : "Welcome back"}
           </h2>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm">
+            <div className="bg-critical/10 border border-critical/30 text-critical rounded-lg p-3 text-sm">
               {error}
             </div>
           )}
           {message && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg p-3 text-sm">
+            <div className="bg-primary-pale/50 border border-primary/30 text-primary rounded-lg p-3 text-sm">
               {message}
             </div>
           )}
@@ -103,7 +100,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-750 disabled:opacity-50 text-white font-medium py-2.5 transition"
+            className="w-full flex items-center justify-center gap-3 rounded-lg border border-primary-pale/60 bg-surface-muted hover:bg-primary-pale/20 disabled:opacity-50 text-text-primary font-medium py-2.5 transition"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -127,9 +124,9 @@ export default function LoginPage() {
           </button>
 
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-700" />
-            <span className="text-xs text-slate-500 uppercase">or</span>
-            <div className="flex-1 h-px bg-slate-700" />
+            <div className="flex-1 h-px bg-primary-pale/60" />
+            <span className="text-xs text-text-muted uppercase">or</span>
+            <div className="flex-1 h-px bg-primary-pale/60" />
           </div>
 
           {/* Email/Password Form */}
@@ -137,7 +134,7 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-slate-300 mb-1"
+                className="block text-sm font-medium text-text-secondary mb-1"
               >
                 Email
               </label>
@@ -147,14 +144,14 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition"
+                className="w-full rounded-lg border border-primary-pale/60 bg-surface-muted px-4 py-2.5 text-text-primary placeholder-text-muted focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
                 placeholder="you@example.com"
               />
             </div>
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-slate-300 mb-1"
+                className="block text-sm font-medium text-text-secondary mb-1"
               >
                 Password
               </label>
@@ -165,7 +162,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-white placeholder-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none transition"
+                className="w-full rounded-lg border border-primary-pale/60 bg-surface-muted px-4 py-2.5 text-text-primary placeholder-text-muted focus:border-primary focus:ring-1 focus:ring-primary outline-none transition"
                 placeholder="••••••••"
               />
             </div>
@@ -173,13 +170,13 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 transition"
+              className="w-full rounded-lg bg-primary hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 transition"
             >
               {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
             </button>
           </form>
 
-          <p className="text-center text-sm text-slate-400">
+          <p className="text-center text-sm text-text-secondary">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
               type="button"
@@ -188,13 +185,13 @@ export default function LoginPage() {
                 setError(null);
                 setMessage(null);
               }}
-              className="text-violet-400 hover:text-violet-300 font-medium"
+              className="text-primary hover:text-primary-light font-medium"
             >
               {isSignUp ? "Sign In" : "Sign Up"}
             </button>
           </p>
 
-          <p className="text-xs text-slate-600 text-center">
+          <p className="text-xs text-text-muted text-center">
             Google sign-in grants read-only access to your calendar for schedule
             analysis. We never modify your events.
           </p>

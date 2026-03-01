@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import FogWrapper from "@/components/FogWrapper";
+import AppHeader from "@/components/AppHeader";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,8 +30,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-text-primary`}
       >
+        <AppHeader />
         <FogWrapper>{children}</FogWrapper>
       </body>
     </html>

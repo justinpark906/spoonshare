@@ -9,25 +9,28 @@
 
 @layer base {
     :root {
-        /* MASTER.md Color Palette — OLED Dark Strategy */
-        --color-background: #020617;
-        --color-surface: #0f172a;
-        --color-primary: #2dd4bf;
+        /* Logo-aligned palette: off-white, teal, red-orange accent, charcoal */
+        --color-background: #F8F8F8;
+        --color-surface: #FFFFFF;
+        --color-surface-muted: #F0F5F4;
+        --color-primary: #4BA8A7;
+        --color-primary-light: #71C8BF;
+        --color-primary-pale: #C4F0E8;
+        --color-accent: #FF6B6B;
+        --color-accent-glow: #FFD700;
+        --color-text-primary: #4C525A;
+        --color-text-secondary: #595F66;
+        --color-text-muted: #6B7280;
         --color-warning: #f59e0b;
         --color-critical: #e11d48;
-        --color-text-primary: #f8fafc;
-        --color-text-secondary: #94a3b8;
 
-        /* Glassmorphism Card tokens */
-        --glass-bg: rgba(15, 23, 42, 0.6);
-        --glass-border: rgba(255, 255, 255, 0.1);
+        /* Glassmorphism on light */
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: rgba(75, 168, 167, 0.2);
         --glass-blur: 12px;
 
-        /* Typography — MASTER.md "Fog-Proof" Scale */
         --font-sans: "Inter", system-ui, sans-serif;
         --font-mono: "JetBrains Mono", monospace;
-
-        /* Spacing — 8px Grid */
         --grid: 8px;
     }
 
@@ -44,9 +47,8 @@
         line-height: 1.6;
     }
 
-    /* MASTER.md §6 — Focus: outline-2 outline-teal-500 */
     *:focus-visible {
-        outline: 2px solid #2dd4bf;
+        outline: 2px solid #4BA8A7;
         outline-offset: 2px;
     }
 

@@ -31,7 +31,7 @@ export default function BatteryMeter({ current, max }: Props) {
     >
       {/* Battery shell */}
       <div className="relative">
-        <div className="w-full h-[48px] bg-surface rounded-card border border-[rgba(255,255,255,0.1)] overflow-hidden relative">
+        <div className="w-full h-[48px] bg-surface rounded-card border border-primary-pale/50 overflow-hidden relative">
           {/* Fill bar */}
           <motion.div
             className={`absolute inset-y-0 left-0 ${bar} rounded-[10px] shadow-lg ${glow}`}
@@ -57,7 +57,7 @@ export default function BatteryMeter({ current, max }: Props) {
         </div>
 
         {/* Battery nub */}
-        <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-2 h-6 bg-surface rounded-r-sm border border-[rgba(255,255,255,0.1)]" />
+        <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-2 h-6 bg-surface rounded-r-sm border border-primary-pale/50 border-l-0" />
       </div>
 
       {/* Percentage label */}
