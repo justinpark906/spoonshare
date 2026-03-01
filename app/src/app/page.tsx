@@ -2,7 +2,6 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { useSpoonStore } from "@/store/useSpoonStore";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import MorningCheckIn from "@/components/MorningCheckIn";
 import BatteryMeter from "@/components/BatteryMeter";
@@ -29,8 +28,9 @@ export default function HomePage() {
     setAuditLoading,
   } = useSpoonStore();
   const router = useRouter();
-  const supabase = createClient();
-  const [onboardingDiseaseMessage, setOnboardingDiseaseMessage] = useState<string | null>(null);
+  const [onboardingDiseaseMessage, setOnboardingDiseaseMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     syncWithSupabase();
@@ -226,10 +226,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <BatteryMeter
-                current={effectiveSpoons}
-                max={20}
-              />
+              <BatteryMeter current={effectiveSpoons} max={20} />
 
               <div className="pt-grid-1">
                 <DeductionTooltip budget={dailyBudget} weather={weatherInfo} />
@@ -286,7 +283,9 @@ export default function HomePage() {
             )}
 
             {/* Condition Tier badge — disease-aware pacing */}
-            {(profile.impact_tier != null || (profile.activity_multiplier != null && profile.activity_multiplier > 1)) && (
+            {(profile.impact_tier != null ||
+              (profile.activity_multiplier != null &&
+                profile.activity_multiplier > 1)) && (
               <section className="glass-card rounded-card p-grid-3">
                 <div className="flex items-center gap-grid-2 flex-wrap">
                   <span className="px-grid-2 py-grid-1 rounded-pill bg-primary/15 text-primary text-data font-medium border border-primary/25">
@@ -298,11 +297,12 @@ export default function HomePage() {
                           ? "Tier 1 (Mild)"
                           : "Condition tier"}
                   </span>
-                  {profile.activity_multiplier != null && profile.activity_multiplier > 1 && (
-                    <span className="text-data text-text-secondary">
-                      Activity costs ×{profile.activity_multiplier.toFixed(1)}
-                    </span>
-                  )}
+                  {profile.activity_multiplier != null &&
+                    profile.activity_multiplier > 1 && (
+                      <span className="text-data text-text-secondary">
+                        Activity costs ×{profile.activity_multiplier.toFixed(1)}
+                      </span>
+                    )}
                   {profile.identified_condition && (
                     <span className="text-data text-text-secondary">
                       {profile.identified_condition}
@@ -371,10 +371,11 @@ export default function HomePage() {
                   </div>
                   <div>
                     <p
-                      className={`text-[24px] font-semibold font-mono ${weatherInfo.pressure_delta < -5
-                        ? "text-critical"
-                        : "text-text-primary"
-                        }`}
+                      className={`text-[24px] font-semibold font-mono ${
+                        weatherInfo.pressure_delta < -5
+                          ? "text-critical"
+                          : "text-text-primary"
+                      }`}
                     >
                       {weatherInfo.pressure_delta > 0 ? "+" : ""}
                       {weatherInfo.pressure_delta.toFixed(1)}

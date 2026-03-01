@@ -26,13 +26,17 @@ const impactTierSchema = z.object({
         .min(1)
         .max(3)
         .describe("1=Mild (1.1x), 2=Moderate (1.5x), 3=Severe (2.0x+)"),
-    })
+    }),
   ),
 });
 
 /** Extract HPO-style terms from the symptoms string (semicolon-separated). */
 export function extractHpoTerms(symptomsRaw: string): string[] {
-  if (!symptomsRaw || symptomsRaw.trim() === "" || /no symptoms listed/i.test(symptomsRaw)) {
+  if (
+    !symptomsRaw ||
+    symptomsRaw.trim() === "" ||
+    /no symptoms listed/i.test(symptomsRaw)
+  ) {
     return [];
   }
   return symptomsRaw
@@ -46,10 +50,12 @@ function heuristicImpactTier(row: GardRow): number {
   const terms = extractHpoTerms(row.symptoms);
   const text = (row.symptoms || "").toLowerCase();
   const hasFatigue =
-    /fatigue|malaise|exertional|chronic fatigue|myalgia|weakness|lethargy|tiredness/i.test(text);
+    /fatigue|malaise|exertional|chronic fatigue|myalgia|weakness|lethargy|tiredness/i.test(
+      text,
+    );
   const hasSevere =
     /encephalopathy|cardiomyopathy|respiratory failure|seizure|developmental delay|intellectual disability/i.test(
-      text
+      text,
     );
   if (terms.length === 0) return 1;
   if (hasSevere && hasFatigue) return 3;
@@ -82,7 +88,12 @@ export function parseGardCsv(csvPath: string): GardRow[] {
   for (const row of parsed.data) {
     const name = row["disease_name"] ?? row["Disease Name"] ?? "";
     const symptoms = row["symptoms"] ?? row["Symptoms"] ?? "";
-    if (name) rows.push({ disease_name: name, symptoms, url: row["url"] ?? row["URL"] });
+    if (name)
+      rows.push({
+        disease_name: name,
+        symptoms,
+        url: row["url"] ?? row["URL"],
+      });
   }
   return rows;
 }
@@ -92,7 +103,7 @@ const BATCH_SIZE = 30;
 /** Assign impact_tier for a batch of diseases using LangChain (optional). */
 async function assignImpactTiersBatch(
   batch: GardRow[],
-  openAiKey: string
+  openAiKey: string,
 ): Promise<number[]> {
   const parser = StructuredOutputParser.fromZodSchema(impactTierSchema);
   const prompt = ChatPromptTemplate.fromMessages([
@@ -100,7 +111,7 @@ async function assignImpactTiersBatch(
       "system",
       `You are a clinical assistant. For each rare disease, assign an impact_tier for daily physical energy impact:
 - 1 = Mild (e.g. localized chronic pain, minor symptoms): 1.1x multiplier
-- 2 = Moderate (e.g. systemic fatigue, multiple symptoms): 1.5x multiplier  
+- 2 = Moderate (e.g. systemic fatigue, multiple symptoms): 1.5x multiplier
 - 3 = Severe (e.g. mitochondrial disease, severe ME/CFS, major neurological/cardiac): 2.0x+ multiplier
 
 Consider: fatigue, malaise, exertion intolerance, pain, cognitive load, mobility.
@@ -123,7 +134,7 @@ Consider: fatigue, malaise, exertion intolerance, pain, cognitive load, mobility
   const diseaseList = batch
     .map(
       (r, i) =>
-        `[${i}] ${r.disease_name}\nSymptoms: ${(r.symptoms || "").slice(0, 400)}`
+        `[${i}] ${r.disease_name}\nSymptoms: ${(r.symptoms || "").slice(0, 400)}`,
     )
     .join("\n\n");
   const result = await chain.invoke({
@@ -149,11 +160,14 @@ export async function syncDiseaseDatabase(options: {
     openAiKey,
     batchSize = BATCH_SIZE,
   } = options;
-  const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase: SupabaseClient = createClient(
+    supabaseUrl,
+    supabaseServiceKey,
+  );
   const rows = parseGardCsv(csvPath);
   const errors: string[] = [];
   let inserted = 0;
-  let updated = 0;
+  const updated = 0;
 
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize);
@@ -162,7 +176,9 @@ export async function syncDiseaseDatabase(options: {
       try {
         tiers = await assignImpactTiersBatch(batch, openAiKey);
       } catch (e) {
-        errors.push(`Batch ${i}: ${e instanceof Error ? e.message : "Unknown error"}`);
+        errors.push(
+          `Batch ${i}: ${e instanceof Error ? e.message : "Unknown error"}`,
+        );
         tiers = batch.map((r) => heuristicImpactTier(r));
       }
     } else {
@@ -181,7 +197,7 @@ export async function syncDiseaseDatabase(options: {
           impact_tier: impactTier,
           gard_url: row.url || null,
         },
-        { onConflict: "name", ignoreDuplicates: false }
+        { onConflict: "name", ignoreDuplicates: false },
       );
       if (error) {
         errors.push(`${row.disease_name}: ${error.message}`);

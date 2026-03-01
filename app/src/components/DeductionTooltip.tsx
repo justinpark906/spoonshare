@@ -80,13 +80,16 @@ export default function DeductionTooltip({ budget, weather }: Props) {
     ])
       .then(([eventsRes, claimsRes]) => {
         setManualEvents(eventsRes.data ?? []);
-        const claims = (claimsRes.data?.claimed_tasks ?? []) as ClaimedTaskRow[];
+        const claims = (claimsRes.data?.claimed_tasks ??
+          []) as ClaimedTaskRow[];
         setClaimedTasks(claims);
         const currentSpoons = claimsRes.data?.current_spoons;
-        setCurrentFromLog(typeof currentSpoons === "number" ? currentSpoons : null);
+        setCurrentFromLog(
+          typeof currentSpoons === "number" ? currentSpoons : null,
+        );
       })
       .finally(() => setLoadingActivity(false));
-  }, [isOpen, profile?.id, today]);
+  }, [isOpen, profile?.id, today, todayStart, todayEnd]);
 
   const morningAdjustment = maxSpoons - budget.starting_spoons;
 
@@ -127,9 +130,7 @@ export default function DeductionTooltip({ budget, weather }: Props) {
         aria-expanded={isOpen}
         className="text-data text-text-secondary hover:text-primary transition-colors duration-200 flex items-center gap-grid-1 cursor-pointer min-h-[44px]"
       >
-        <span>
-          Why is my budget {currentFromLog ?? effectiveSpoons}?
-        </span>
+        <span>Why is my budget {currentFromLog ?? effectiveSpoons}?</span>
         <svg
           className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -221,7 +222,9 @@ export default function DeductionTooltip({ budget, weather }: Props) {
                 {morningAdjustment > 0 && (
                   <div className="flex justify-between gap-grid-2 text-warning">
                     <span className="truncate">− Morning adjustments</span>
-                    <span className="font-mono shrink-0">−{morningAdjustment}</span>
+                    <span className="font-mono shrink-0">
+                      −{morningAdjustment}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between gap-grid-2">
@@ -248,10 +251,12 @@ export default function DeductionTooltip({ budget, weather }: Props) {
                           className={`flex justify-between gap-grid-2 ${isGain ? "text-primary" : "text-critical"}`}
                         >
                           <span className="truncate">
-                            {timeLabel ? `${timeLabel} · ` : ""}{sign} {row.label}
+                            {timeLabel ? `${timeLabel} · ` : ""}
+                            {sign} {row.label}
                           </span>
                           <span className="font-mono shrink-0">
-                            {sign}{amount}
+                            {sign}
+                            {amount}
                           </span>
                         </div>
                       );
@@ -268,8 +273,8 @@ export default function DeductionTooltip({ budget, weather }: Props) {
                     )}
                     {activityRows.length === 0 && (
                       <p className="text-text-secondary text-[12px]">
-                        No activities or caregiver claims yet today — current
-                        = starting ({budget.starting_spoons}).
+                        No activities or caregiver claims yet today — current =
+                        starting ({budget.starting_spoons}).
                       </p>
                     )}
                   </>
