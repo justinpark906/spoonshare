@@ -58,6 +58,20 @@ Supabase requires new users to confirm their email by default. For local dev or 
 
 (Re-enable for production so only real addresses can sign in.)
 
+### 5. Deploy to Vercel
+
+1. Push your repo to GitHub and import the project in [Vercel](https://vercel.com).
+2. Set the **Root Directory** to `app` (Settings → General → Root Directory). That way Vercel builds from the Next.js app and detects the framework correctly.
+3. In **Settings → Framework Settings**:
+   - **Framework Preset:** choose **Next.js** (if it shows "Other", change it so Vercel doesn’t use the static "public" output).
+   - **Output Directory:** turn **Override** **ON** and leave the value **empty** (delete any `public` or `.` so the field is blank). Next.js uses `.next`; Vercel handles it when the preset is Next.js.
+4. In **Settings → Environment Variables**, add (and enable for **Build** and **Production**):
+   - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
+   - `OPENAI_API_KEY` = optional; for AI features
+   - `OPENWEATHERMAP_API_KEY` = optional; for weather deductions
+5. Redeploy.
+
 ---
 
 ## How to Navigate the App

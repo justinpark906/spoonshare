@@ -1,12 +1,38 @@
+
+
 {
-  "name": "spoonshare",
+  "name": "app",
+  "version": "0.1.0",
   "private": true,
-  "description": "AI-driven energy management for rare and chronic illness",
   "scripts": {
-    "install": "cd app && npm install",
-    "dev": "cd app && npm run dev",
-    "build": "cd app && npm run build",
-    "start": "cd app && npm start",
-    "lint": "cd app && npm run lint"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.1.29",
+    "@langchain/openai": "^1.2.11",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "framer-motion": "^12.34.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.0",
+    "langchain": "^1.2.28",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
   }
 }
