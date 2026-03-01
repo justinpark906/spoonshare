@@ -423,10 +423,10 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="text-[24px] font-semibold font-mono text-text-primary">
-                          {weatherInfo.temperature_c.toFixed(0)}°
+                          {Math.round((weatherInfo.temperature_c * 9) / 5 + 32)}°
                         </p>
                         <p className="text-[12px] text-text-secondary/60">
-                          celsius
+                          fahrenheit
                         </p>
                       </div>
                     </div>

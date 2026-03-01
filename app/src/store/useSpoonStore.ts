@@ -271,9 +271,9 @@ export const useSpoonStore = create<SpoonState>()(
               deduction_reasons: dailyLog.deduction_reasons || [],
             };
             updates.weatherInfo = {
-              pressure_hpa: dailyLog.pressure_hpa ?? 0,
+              pressure_hpa: dailyLog.pressure_hpa ?? 1013,
               pressure_delta: dailyLog.pressure_delta ?? 0,
-              temperature_c: dailyLog.temperature_c ?? 0,
+              temperature_c: dailyLog.temperature_c ?? 20,
               condition: "",
             };
             updates.hasCheckedInToday = true;

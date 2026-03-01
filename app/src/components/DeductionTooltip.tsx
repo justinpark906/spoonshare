@@ -315,7 +315,7 @@ export default function DeductionTooltip({ budget, weather }: Props) {
                   <p>
                     Temperature:{" "}
                     <span className="font-mono">
-                      {weather.temperature_c.toFixed(1)}°C
+                      {((weather.temperature_c * 9) / 5 + 32).toFixed(1)}°F
                     </span>
                   </p>
                 </div>

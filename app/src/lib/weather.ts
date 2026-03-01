@@ -33,10 +33,10 @@ export async function fetchCurrentWeather(
   if (!apiKey || apiKey === "your_openweathermap_api_key_here") {
     // Return realistic demo data for hackathon/testing
     return {
-      pressure_hpa: 1005,
-      temperature_c: 0,
-      humidity: 78,
-      weather_condition: "overcast clouds",
+      pressure_hpa: 1014,
+      temperature_c: 20,
+      humidity: 52,
+      weather_condition: "partly cloudy",
     };
   }
 
@@ -62,7 +62,7 @@ export async function fetchCurrentWeather(
  *
  * Rules:
  * - Pressure drop > 5 hPa in 12h → deduct 3 spoons
- * - Temperature < 10°C AND user has 'Chronic Pain' tag → deduct 2 spoons
+ * - Temperature < 50°F (10°C) AND user has 'Chronic Pain' tag → deduct 2 spoons
  */
 export function calculateWeatherDeductions(
   current: WeatherData,
@@ -95,8 +95,9 @@ export function calculateWeatherDeductions(
 
   if (current.temperature_c < 10 && hasChronicPain) {
     weatherDeduction += 2;
+    const temperatureF = (current.temperature_c * 9) / 5 + 32;
     reasons.push(
-      `Cold temperature (${current.temperature_c.toFixed(1)}°C) with chronic pain profile`,
+      `Cold temperature (${temperatureF.toFixed(1)}°F) with chronic pain profile`,
     );
   }
 
