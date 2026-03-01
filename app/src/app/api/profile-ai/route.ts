@@ -33,6 +33,17 @@ const profileSchema = z.object({
     ),
 });
 
+// Zod schema for disease-specific immediate spoon depletion (0–10)
+const diseasePenaltySchema = z.object({
+  spoons_to_deplete: z
+    .number()
+    .min(0)
+    .max(10)
+    .describe(
+      "Integer from 0 (no extra depletion) to 10 (extremely energy-burdensome disease) representing immediate spoons to subtract."
+    ),
+});
+
 /** True only if the key looks like a real Groq key and is not a placeholder. */
 function hasValidGroqKey(): boolean {
   const key = process.env.GROQ_API_KEY?.trim();
@@ -43,13 +54,134 @@ function hasValidGroqKey(): boolean {
 
 /** Default profile when GROQ_API_KEY is missing or invalid (e.g. local dev). */
 function getDefaultProfile(scores: Record<string, number>) {
-  const avg = Object.values(scores).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(scores).length);
+  const avg =
+    Object.values(scores).reduce((a, b) => a + b, 0) /
+    Math.max(1, Object.keys(scores).length);
   const multiplier = avg >= 7 ? 1.5 : avg >= 4 ? 1.2 : 1.0;
   return {
     suggested_multiplier: multiplier,
-    condition_tags: avg >= 6 ? ["General symptom load — add a valid GROQ_API_KEY for personalized tags"] : [],
-    educational_note: "Profile saved. Add a valid GROQ_API_KEY to .env.local for Groq-based multiplier and condition tags.",
+    condition_tags:
+      avg >= 6
+        ? [
+            "General symptom load — add a valid GROQ_API_KEY for personalized tags",
+          ]
+        : [],
+    educational_note:
+      "Profile saved. Add a valid GROQ_API_KEY to .env.local for Groq-based multiplier and condition tags.",
   };
+}
+
+/** Compute immediate disease-related spoon depletion (0–10) from GARD symptom text. */
+async function computeDiseasePenalty(symptomsRaw: string): Promise<number> {
+  if (!symptomsRaw || !symptomsRaw.trim()) return 0;
+
+  // Heuristic fallback if no Groq key
+  const heuristic = () => {
+    const text = symptomsRaw.toLowerCase();
+    const terms = symptomsRaw.split(";").map((s) => s.trim()).filter(Boolean);
+    let score = 0;
+
+    const severeKeywords = [
+      "cardiomyopathy",
+      "dilated cardiomyopathy",
+      "respiratory failure",
+      "respiratory insufficiency",
+      "encephalopathy",
+      "seizure",
+      "seizures",
+      "myopathy",
+      "ataxia",
+      "wheelchair",
+      "non-ambulatory",
+      "ventricular",
+      "pulmonary hypertension",
+      "myelopathy",
+      "myopathy",
+      "developmental regression",
+      "intellectual disability, severe",
+    ];
+
+    const fatigueKeywords = [
+      "fatigue",
+      "malaise",
+      "weakness",
+      "lethargy",
+      "failure to thrive",
+      "muscle weakness",
+      "myalgia",
+    ];
+
+    const painKeywords = ["pain", "myalgia", "arthralgia"];
+
+    const severeHits = severeKeywords.filter((k) => text.includes(k)).length;
+    const fatigueHits = fatigueKeywords.filter((k) => text.includes(k)).length;
+    const painHits = painKeywords.filter((k) => text.includes(k)).length;
+
+    // Base on term count
+    if (terms.length > 25) score += 4;
+    else if (terms.length > 15) score += 3;
+    else if (terms.length > 8) score += 2;
+    else if (terms.length > 3) score += 1;
+
+    score += severeHits * 2;
+    score += fatigueHits;
+    score += painHits * 0.5;
+
+    return Math.max(0, Math.min(10, Math.round(score)));
+  };
+
+  if (!hasValidGroqKey()) {
+    return heuristic();
+  }
+
+  try {
+    const parser = StructuredOutputParser.fromZodSchema(diseasePenaltySchema);
+    const prompt = ChatPromptTemplate.fromMessages([
+      [
+        "system",
+        `You are an expert in chronic and rare diseases, specializing in energy impairment and functional capacity.
+
+Given the symptom description for a specific disease, estimate how many spoons should be immediately depleted from a default 20-spoon day, where:
+- 0 = minimal baseline impact beyond symptoms already captured elsewhere
+- 1–3 = mild baseline depletion (disease adds some background strain)
+- 4–7 = moderate baseline depletion (multi-system involvement, frequent limitations)
+- 8–10 = severe baseline depletion (major organ involvement, progressive neuro or cardio, high disability)
+
+Focus on how much unavoidable, always-on energy cost the disease creates, *before* considering daily activities.
+
+Return a single integer field spoons_to_deplete from 0 to 10.
+
+{format_instructions}`,
+      ],
+      [
+        "human",
+        `Here is the disease symptom description from the GARD database:
+
+{symptoms}
+
+Based on this, how many spoons should be immediately depleted (0–10)?`,
+      ],
+    ]);
+
+    const model = new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: GROQ_MODEL,
+      temperature: 0.2,
+    });
+
+    const chain = prompt.pipe(model).pipe(parser);
+    const result = await chain.invoke({
+      symptoms: symptomsRaw.slice(0, 2000),
+      format_instructions: parser.getFormatInstructions(),
+    });
+
+    return Math.max(
+      0,
+      Math.min(10, Math.round(result.spoons_to_deplete ?? 0)),
+    );
+  } catch {
+    return heuristic();
+  }
 }
 
 export async function POST(request: Request) {
@@ -64,8 +196,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 2. Parse the incoming scores
-    const { scores } = await request.json();
+    // 2. Parse the incoming scores and optional disease name
+    const body = await request.json();
+    const { scores, disease_name } = body as {
+      scores: Record<string, number>;
+      disease_name?: string | null;
+    };
 
     if (!scores || typeof scores !== "object") {
       return NextResponse.json(
@@ -155,8 +291,10 @@ Please analyze my profile and provide the structured output.`,
     };
     const userLabels = userSymptomLabels(
       result.condition_tags,
-      scores as Record<string, number>
+      scores as Record<string, number>,
     );
+
+    // Try to find a matching disease by HPO overlap
     const matchedDisease = await findBestMatchingDisease(supabase, userLabels);
     if (matchedDisease) {
       profileUpdate.disease_id = matchedDisease.id;
@@ -183,6 +321,20 @@ Please analyze my profile and provide the structured output.`,
       );
     }
 
+    // 5. If the user provided an explicit disease name, estimate immediate spoon depletion
+    let diseasePenalty = 0;
+    if (typeof disease_name === "string" && disease_name.trim()) {
+      const { data: diseaseRow } = await supabase
+        .from("diseases")
+        .select("id, name, symptoms_raw")
+        .ilike("name", disease_name.trim())
+        .maybeSingle();
+
+      if (diseaseRow?.symptoms_raw) {
+        diseasePenalty = await computeDiseasePenalty(diseaseRow.symptoms_raw);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       profile: {
@@ -193,6 +345,7 @@ Please analyze my profile and provide the structured output.`,
         identified_condition: matchedDisease?.name ?? null,
         activity_multiplier: matchedDisease?.activity_multiplier ?? 1.0,
         impact_tier: matchedDisease?.impact_tier ?? null,
+        disease_penalty: diseasePenalty,
       },
     });
   } catch (err) {

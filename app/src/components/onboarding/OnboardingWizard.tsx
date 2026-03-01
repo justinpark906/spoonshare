@@ -21,6 +21,7 @@ const slideVariants = {
 export default function OnboardingWizard() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [diseaseName, setDiseaseName] = useState("");
   const [scores, setScores] = useState<Record<string, number>>(
     Object.fromEntries(PHENOTYPES.map((p) => [p.id, 5]))
   );
@@ -28,8 +29,9 @@ export default function OnboardingWizard() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const totalSteps = PHENOTYPES.length;
-  const currentPhenotype = PHENOTYPES[step];
+  // Step 0 = disease free-text question, remaining steps are PHENOTYPES
+  const totalSteps = PHENOTYPES.length + 1;
+  const currentPhenotype = step === 0 ? null : PHENOTYPES[step - 1];
   const progress = ((step + 1) / totalSteps) * 100;
 
   function goNext() {
@@ -54,7 +56,7 @@ export default function OnboardingWizard() {
       const res = await fetch("/api/profile-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores }),
+        body: JSON.stringify({ scores, disease_name: diseaseName }),
       });
 
       if (!res.ok) {
@@ -109,13 +111,44 @@ export default function OnboardingWizard() {
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="glass-card bg-surface rounded-2xl p-8"
           >
-            <PhenotypeSlider
-              phenotype={currentPhenotype}
-              value={scores[currentPhenotype.id]}
-              onChange={(val) =>
-                setScores((prev) => ({ ...prev, [currentPhenotype.id]: val }))
-              }
-            />
+            {step === 0 ? (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-h2 text-text-primary mb-1">
+                    What disease or condition do you have?
+                  </h2>
+                  <p className="text-data text-text-secondary">
+                    Type the name of your primary diagnosis (for example,{" "}
+                    <span className="font-semibold">11q partial monosomy syndrome</span>).
+                    This helps us match you to the GARD disease database.
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  value={diseaseName}
+                  onChange={(e) => setDiseaseName(e.target.value)}
+                  placeholder="Start typing your disease name..."
+                  className="w-full rounded-card border border-primary-pale/60 bg-surface-muted px-grid-2 py-[10px] text-text-primary placeholder-text-muted focus:border-primary focus:ring-1 focus:ring-primary outline-none text-data"
+                />
+                <p className="text-xs text-text-muted">
+                  If you are unsure or don&apos;t have a formal diagnosis yet, you can leave
+                  this blank and continue.
+                </p>
+              </div>
+            ) : (
+              currentPhenotype && (
+                <PhenotypeSlider
+                  phenotype={currentPhenotype}
+                  value={scores[currentPhenotype.id]}
+                  onChange={(val) =>
+                    setScores((prev) => ({
+                      ...prev,
+                      [currentPhenotype.id]: val,
+                    }))
+                  }
+                />
+              )
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
