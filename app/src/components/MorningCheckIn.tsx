@@ -127,7 +127,7 @@ export default function MorningCheckIn({ onComplete }: Props) {
           value={sleepScore}
           onChange={(e) => setSleepScore(Number(e.target.value))}
           aria-label="Sleep quality score"
-          className="w-full h-[12px] bg-surface rounded-pill appearance-none cursor-pointer accent-primary"
+          className="ss-range ss-range--primary cursor-pointer"
         />
         <div className="flex justify-between items-center">
           <span className="text-[12px] text-text-secondary">Terrible</span>
@@ -169,7 +169,7 @@ export default function MorningCheckIn({ onComplete }: Props) {
           value={painScore}
           onChange={(e) => setPainScore(Number(e.target.value))}
           aria-label="Pain and brain fog score"
-          className="w-full h-[12px] bg-surface rounded-pill appearance-none cursor-pointer accent-critical"
+          className="ss-range ss-range--critical cursor-pointer"
         />
         <div className="flex justify-between items-center">
           <span className="text-[12px] text-text-secondary">Minimal</span>
@@ -212,14 +212,16 @@ export default function MorningCheckIn({ onComplete }: Props) {
             aria-checked={hrvEnabled}
             aria-label="Toggle HRV entry"
             onClick={() => setHrvEnabled(!hrvEnabled)}
-            className={`relative w-[48px] h-[24px] rounded-pill transition-colors duration-200 cursor-pointer ${
-              hrvEnabled ? "bg-primary" : "bg-surface"
-            }`}
+            className={`relative w-[48px] h-[24px] rounded-pill border transition-colors duration-200 cursor-pointer ${hrvEnabled
+              ? "bg-primary/25 border-primary shadow-[0_0_0_2px_rgba(75,168,167,0.25)]"
+              : "bg-surface border-[rgba(76,82,90,0.35)]"
+              }`}
           >
-            <motion.div
-              className="absolute top-[2px] w-5 h-5 bg-text-primary rounded-full shadow"
-              animate={{ left: hrvEnabled ? "26px" : "2px" }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            <div
+              className={`absolute left-[2px] top-1/2 h-5 w-5 -translate-y-1/2 rounded-full shadow transition-transform duration-200 ${hrvEnabled
+                ? "translate-x-6 bg-primary border border-primary"
+                : "translate-x-0 bg-text-secondary border border-[rgba(76,82,90,0.45)]"
+                }`}
             />
           </button>
         </div>
@@ -313,14 +315,16 @@ export default function MorningCheckIn({ onComplete }: Props) {
             aria-checked={wearableEnabled}
             aria-label="Toggle wearable sync"
             onClick={() => setWearableEnabled(!wearableEnabled)}
-            className={`relative w-[48px] h-[24px] rounded-pill transition-colors duration-200 cursor-pointer ${
-              wearableEnabled ? "bg-primary" : "bg-surface"
-            }`}
+            className={`relative w-[48px] h-[24px] rounded-pill border transition-colors duration-200 cursor-pointer ${wearableEnabled
+              ? "bg-primary/25 border-primary shadow-[0_0_0_2px_rgba(75,168,167,0.25)]"
+              : "bg-surface border-[rgba(76,82,90,0.35)]"
+              }`}
           >
-            <motion.div
-              className="absolute top-[2px] w-5 h-5 bg-text-primary rounded-full shadow"
-              animate={{ left: wearableEnabled ? "26px" : "2px" }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            <div
+              className={`absolute left-[2px] top-1/2 h-5 w-5 -translate-y-1/2 rounded-full shadow transition-transform duration-200 ${wearableEnabled
+                ? "translate-x-6 bg-primary border border-primary"
+                : "translate-x-0 bg-text-secondary border border-[rgba(76,82,90,0.45)]"
+                }`}
             />
           </button>
         </div>

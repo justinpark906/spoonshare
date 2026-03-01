@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGroq } from "@langchain/groq";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
@@ -9,6 +9,8 @@ import {
   userSymptomLabels,
   findBestMatchingDisease,
 } from "@/lib/disease-match";
+
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
 
 // Zod schema for the structured AI output
 const profileSchema = z.object({
@@ -31,23 +33,22 @@ const profileSchema = z.object({
     ),
 });
 
-/** True only if the key looks like a real OpenAI key (sk-...) and is not a placeholder. */
-function hasValidOpenAIKey(): boolean {
-  const key = process.env.OPENAI_API_KEY?.trim();
+/** True only if the key looks like a real Groq key and is not a placeholder. */
+function hasValidGroqKey(): boolean {
+  const key = process.env.GROQ_API_KEY?.trim();
   if (!key || key.length < 20) return false;
-  if (!key.startsWith("sk-")) return false;
-  if (/your_ope|your-openai|placeholder|example\.com/i.test(key)) return false;
+  if (/your_groq|your-groq|placeholder|example\.com/i.test(key)) return false;
   return true;
 }
 
-/** Default profile when OPENAI_API_KEY is missing or invalid (e.g. local dev). */
+/** Default profile when GROQ_API_KEY is missing or invalid (e.g. local dev). */
 function getDefaultProfile(scores: Record<string, number>) {
   const avg = Object.values(scores).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(scores).length);
   const multiplier = avg >= 7 ? 1.5 : avg >= 4 ? 1.2 : 1.0;
   return {
     suggested_multiplier: multiplier,
-    condition_tags: avg >= 6 ? ["General symptom load — add a valid OPENAI_API_KEY for personalized tags"] : [],
-    educational_note: "Profile saved. Add a valid OPENAI_API_KEY to .env.local for AI-derived multiplier and condition tags.",
+    condition_tags: avg >= 6 ? ["General symptom load — add a valid GROQ_API_KEY for personalized tags"] : [],
+    educational_note: "Profile saved. Add a valid GROQ_API_KEY to .env.local for Groq-based multiplier and condition tags.",
   };
 }
 
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
 
     let result: z.infer<typeof profileSchema>;
 
-    if (hasValidOpenAIKey()) {
+    if (hasValidGroqKey()) {
       try {
         // 3. Build the phenotype summary for the prompt
         const phenotypeSummary = PHENOTYPES.map(
@@ -121,8 +122,9 @@ Please analyze my profile and provide the structured output.`,
           ],
         ]);
 
-        const model = new ChatOpenAI({
-          modelName: "gpt-4o-mini",
+        const model = new ChatGroq({
+          apiKey: process.env.GROQ_API_KEY,
+          model: GROQ_MODEL,
           temperature: 0.3,
         });
 
@@ -131,13 +133,13 @@ Please analyze my profile and provide the structured output.`,
           phenotype_summary: phenotypeSummary,
           format_instructions: parser.getFormatInstructions(),
         });
-      } catch (openAiErr: unknown) {
+      } catch (groqErr: unknown) {
         // 401 invalid key, rate limit, or other API error — save profile with defaults
-        const code = openAiErr && typeof openAiErr === "object" && "code" in openAiErr ? (openAiErr as { code?: string }).code : null;
-        if (code === "invalid_api_key" || (openAiErr && typeof openAiErr === "object" && "status" in openAiErr && (openAiErr as { status?: number }).status === 401)) {
+        const code = groqErr && typeof groqErr === "object" && "code" in groqErr ? (groqErr as { code?: string }).code : null;
+        if (code === "invalid_api_key" || (groqErr && typeof groqErr === "object" && "status" in groqErr && (groqErr as { status?: number }).status === 401)) {
           result = getDefaultProfile(scores as Record<string, number>);
         } else {
-          throw openAiErr;
+          throw groqErr;
         }
       }
     } else {

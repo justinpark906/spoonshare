@@ -1,0 +1,10 @@
+# Root workspace local artifacts (real app is in /app)
+/.next/
+/node_modules/
+/next-env.d.ts
+/tsconfig.json
+
+# Optional logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

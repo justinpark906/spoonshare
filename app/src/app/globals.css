@@ -54,6 +54,7 @@
 
     /* MASTER.md §6 — prefers-reduced-motion */
     @media (prefers-reduced-motion: reduce) {
+
         *,
         *::before,
         *::after {
@@ -66,6 +67,7 @@
 }
 
 @layer components {
+
     /* Glassmorphism Card — MASTER.md §4A */
     .glass-card {
         background: var(--glass-bg);
@@ -73,6 +75,73 @@
         -webkit-backdrop-filter: blur(var(--glass-blur));
         border: 1px solid var(--glass-border);
         border-radius: 12px;
+    }
+
+    .ss-range {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        width: 100%;
+    }
+
+    .ss-range:focus {
+        outline: none;
+    }
+
+    .ss-range::-webkit-slider-runnable-track {
+        height: 12px;
+        border-radius: 9999px;
+        background: rgba(76, 82, 90, 0.18);
+        border: 1px solid rgba(75, 168, 167, 0.25);
+    }
+
+    .ss-range::-moz-range-track {
+        height: 12px;
+        border-radius: 9999px;
+        background: rgba(76, 82, 90, 0.18);
+        border: 1px solid rgba(75, 168, 167, 0.25);
+    }
+
+    .ss-range--primary::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        margin-top: -4px;
+        background: var(--color-primary);
+        border: 2px solid #ffffff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22);
+    }
+
+    .ss-range--primary::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--color-primary);
+        border: 2px solid #ffffff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22);
+    }
+
+    .ss-range--critical::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        margin-top: -4px;
+        background: var(--color-critical);
+        border: 2px solid #ffffff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22);
+    }
+
+    .ss-range--critical::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--color-critical);
+        border: 2px solid #ffffff;
+        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.22);
     }
 }
 

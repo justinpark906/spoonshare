@@ -349,35 +349,35 @@ export default function DashboardPage() {
                 {(profile.impact_tier != null ||
                   (profile.activity_multiplier != null &&
                     profile.activity_multiplier > 1)) && (
-                  <section className="glass-card rounded-card p-grid-3">
-                    <div className="flex items-center gap-grid-2 flex-wrap">
-                      <span className="px-grid-2 py-grid-1 rounded-pill bg-primary/15 text-primary text-data font-medium border border-primary/25">
-                        {profile.impact_tier === 3
-                          ? "Tier 3 (Severe)"
-                          : profile.impact_tier === 2
-                            ? "Tier 2 (Moderate)"
-                            : profile.impact_tier === 1
-                              ? "Tier 1 (Mild)"
-                              : "Condition tier"}
-                      </span>
-                      {profile.activity_multiplier != null &&
-                        profile.activity_multiplier > 1 && (
+                    <section className="glass-card rounded-card p-grid-3">
+                      <div className="flex items-center gap-grid-2 flex-wrap">
+                        <span className="px-grid-2 py-grid-1 rounded-pill bg-primary/15 text-primary text-data font-medium border border-primary/25">
+                          {profile.impact_tier === 3
+                            ? "Tier 3 (Severe)"
+                            : profile.impact_tier === 2
+                              ? "Tier 2 (Moderate)"
+                              : profile.impact_tier === 1
+                                ? "Tier 1 (Mild)"
+                                : "Condition tier"}
+                        </span>
+                        {profile.activity_multiplier != null &&
+                          profile.activity_multiplier > 1 && (
+                            <span className="text-data text-text-secondary">
+                              Activity costs ×
+                              {profile.activity_multiplier.toFixed(1)}
+                            </span>
+                          )}
+                        {profile.identified_condition && (
                           <span className="text-data text-text-secondary">
-                            Activity costs ×
-                            {profile.activity_multiplier.toFixed(1)}
+                            {profile.identified_condition}
                           </span>
                         )}
-                      {profile.identified_condition && (
-                        <span className="text-data text-text-secondary">
-                          {profile.identified_condition}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[12px] text-text-secondary/80 mt-grid-1">
-                      Your activity costs are scaled to reflect your condition.
-                    </p>
-                  </section>
-                )}
+                      </div>
+                      <p className="text-[12px] text-text-secondary/80 mt-grid-1">
+                        Your activity costs are scaled to reflect your condition.
+                      </p>
+                    </section>
+                  )}
 
                 {/* Weather Card */}
                 {weatherInfo && (
@@ -409,11 +409,10 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p
-                          className={`text-[24px] font-semibold font-mono ${
-                            weatherInfo.pressure_delta < -5
-                              ? "text-critical"
-                              : "text-text-primary"
-                          }`}
+                          className={`text-[24px] font-semibold font-mono ${weatherInfo.pressure_delta < -5
+                            ? "text-critical"
+                            : "text-text-primary"
+                            }`}
                         >
                           {weatherInfo.pressure_delta > 0 ? "+" : ""}
                           {weatherInfo.pressure_delta.toFixed(1)}

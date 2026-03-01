@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGroq } from "@langchain/groq";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
@@ -9,6 +9,8 @@ import {
   getDemoCalendarEvents,
   CalendarEvent,
 } from "@/lib/google-calendar";
+
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
 
 // --- Zod schemas for structured AI output ---
 
@@ -217,9 +219,10 @@ Please analyze each event and provide the structured output.`,
       ],
     ]);
 
-    const model = new ChatOpenAI({
-      modelName: "gpt-4o-mini",
+    const model = new ChatGroq({
+      model: GROQ_MODEL,
       temperature: 0.2,
+      apiKey: process.env.GROQ_API_KEY,
     });
 
     const auditChain = auditPrompt.pipe(model).pipe(auditParser);
