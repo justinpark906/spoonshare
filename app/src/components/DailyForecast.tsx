@@ -21,39 +21,38 @@ function formatTime(iso: string): string {
   }
 }
 
+// MASTER.md: primary #2dd4bf, warning #f59e0b, critical #e11d48
 function CostBadge({ cost }: { cost: number }) {
   const color =
     cost <= 2
-      ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+      ? "bg-primary/20 text-primary border-primary/30"
       : cost <= 4
-        ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+        ? "bg-warning/20 text-warning border-warning/30"
         : cost <= 6
-          ? "bg-orange-500/20 text-orange-400 border-orange-500/30"
-          : "bg-red-500/20 text-red-400 border-red-500/30";
+          ? "bg-warning/20 text-warning border-warning/30"
+          : "bg-critical/20 text-critical border-critical/30";
 
   return (
     <span
-      className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}
+      className={`px-grid-1 py-[2px] rounded-pill text-[12px] font-semibold font-mono border ${color}`}
     >
       {cost} spoons
     </span>
   );
 }
 
-function PriorityBadge({
-  priority,
-}: {
-  priority: EventCost["priority"];
-}) {
+function PriorityBadge({ priority }: { priority: EventCost["priority"] }) {
   const styles = {
-    essential: "bg-red-500/15 text-red-300",
-    important: "bg-violet-500/15 text-violet-300",
-    flexible: "bg-blue-500/15 text-blue-300",
-    deferrable: "bg-slate-500/15 text-slate-400",
+    essential: "bg-critical/15 text-critical",
+    important: "bg-primary/15 text-primary",
+    flexible: "bg-primary/10 text-primary/70",
+    deferrable: "bg-surface text-text-secondary",
   };
 
   return (
-    <span className={`px-2 py-0.5 rounded text-xs ${styles[priority]}`}>
+    <span
+      className={`px-grid-1 py-[2px] rounded text-[12px] ${styles[priority]}`}
+    >
       {priority}
     </span>
   );
@@ -69,25 +68,28 @@ function SpoonTimeline({
   let remaining = startingSpoons;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-grid-1">
       {events.map((event) => {
         remaining -= event.cost;
         const percentage = Math.max(0, (remaining / startingSpoons) * 100);
 
         return (
-          <div key={event.id} className="flex items-center gap-3 text-sm">
-            <span className="text-slate-500 w-16 text-right shrink-0">
+          <div
+            key={event.id}
+            className="flex items-center gap-grid-2 text-data"
+          >
+            <span className="text-text-secondary w-[64px] text-right shrink-0 font-mono">
               {formatTime(event.start)}
             </span>
             <div className="flex-1">
-              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-grid-1 bg-surface rounded-pill overflow-hidden">
                 <motion.div
-                  className={`h-full rounded-full ${
+                  className={`h-full rounded-pill ${
                     remaining <= 0
-                      ? "bg-red-500"
+                      ? "bg-critical"
                       : remaining <= 3
-                        ? "bg-orange-500"
-                        : "bg-violet-500"
+                        ? "bg-warning"
+                        : "bg-primary"
                   }`}
                   initial={{ width: "100%" }}
                   animate={{ width: `${percentage}%` }}
@@ -96,8 +98,8 @@ function SpoonTimeline({
               </div>
             </div>
             <span
-              className={`w-8 text-right text-xs font-mono ${
-                remaining <= 0 ? "text-red-400" : "text-slate-400"
+              className={`w-grid-4 text-right text-[12px] font-mono ${
+                remaining <= 0 ? "text-critical" : "text-text-secondary"
               }`}
             >
               {remaining}
@@ -125,14 +127,14 @@ export default function DailyForecast({
   usingDemo,
 }: Props) {
   const [viewMode, setViewMode] = useState<"original" | "optimized">(
-    "original"
+    "original",
   );
   const { isAuditLoading } = useSpoonStore();
 
   if (isAuditLoading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
-        <div className="animate-pulse text-slate-400">
+      <div className="glass-card rounded-card p-grid-4 text-center">
+        <div className="animate-pulse text-text-secondary">
           AI is analyzing your schedule...
         </div>
       </div>
@@ -140,21 +142,34 @@ export default function DailyForecast({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-grid-3">
       {/* Crash Alert Banner */}
       {crashPrediction?.will_crash && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-red-500/10 border-2 border-red-500/40 rounded-2xl p-6 text-center space-y-2"
+          className="bg-critical/10 border-2 border-critical/40 rounded-card p-grid-3 text-center space-y-grid-1"
+          role="alert"
         >
-          <div className="text-3xl">🚨</div>
-          <h3 className="text-lg font-bold text-red-400">
+          <svg
+            className="w-8 h-8 text-critical mx-auto"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <h3 className="text-h2 font-bold text-critical">
             Energy Crash Predicted
           </h3>
-          <p className="text-red-300 text-sm">
+          <p className="text-critical/80 text-data">
             You&apos;re projected to crash at{" "}
-            <span className="font-bold">
+            <span className="font-bold font-mono">
               {crashPrediction.crash_time
                 ? formatTime(crashPrediction.crash_time)
                 : "unknown"}
@@ -169,74 +184,82 @@ export default function DailyForecast({
               </>
             )}
           </p>
-          <p className="text-red-400/70 text-xs">
+          <p className="text-critical/50 text-[12px] font-mono">
             {crashPrediction.spoons_over_budget} spoons over budget
           </p>
         </motion.div>
       )}
 
       {/* Energy Weather Forecast Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <section className="glass-card rounded-card p-grid-3 space-y-grid-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">
-              {audit.crash_probability > 70
-                ? "🌪️"
-                : audit.crash_probability > 40
-                  ? "⛅"
-                  : "☀️"}
-            </span>
+          <div className="flex items-center gap-grid-2">
+            <svg
+              className={`w-6 h-6 ${audit.crash_probability > 70 ? "text-critical" : audit.crash_probability > 40 ? "text-warning" : "text-primary"}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+            </svg>
             <div>
-              <h3 className="text-lg font-semibold text-white">
+              <h3 className="text-h2 text-text-primary">
                 Energy Weather Forecast
               </h3>
-              <p className="text-sm text-slate-400">{audit.risk_summary}</p>
+              <p className="text-data text-text-secondary">
+                {audit.risk_summary}
+              </p>
             </div>
           </div>
           {usingDemo && (
-            <span className="px-2 py-1 rounded bg-amber-500/15 text-amber-400 text-xs">
+            <span className="px-grid-1 py-[4px] rounded bg-warning/15 text-warning text-[12px]">
               Demo Data
             </span>
           )}
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Stats Row — font-mono for numbers */}
+        <div className="grid grid-cols-3 gap-grid-2">
           <div className="text-center">
-            <p className="text-2xl font-bold text-white">{startingSpoons}</p>
-            <p className="text-xs text-slate-500">Starting Budget</p>
+            <p className="text-[24px] font-bold font-mono text-text-primary">
+              {startingSpoons}
+            </p>
+            <p className="text-[12px] text-text-secondary">Starting Budget</p>
           </div>
           <div className="text-center">
             <p
-              className={`text-2xl font-bold ${
+              className={`text-[24px] font-bold font-mono ${
                 audit.total_projected_drain > startingSpoons
-                  ? "text-red-400"
-                  : "text-white"
+                  ? "text-critical"
+                  : "text-text-primary"
               }`}
             >
               {audit.total_projected_drain}
             </p>
-            <p className="text-xs text-slate-500">Projected Drain</p>
+            <p className="text-[12px] text-text-secondary">Projected Drain</p>
           </div>
           <div className="text-center">
             <p
-              className={`text-2xl font-bold ${
+              className={`text-[24px] font-bold font-mono ${
                 audit.crash_probability > 70
-                  ? "text-red-400"
+                  ? "text-critical"
                   : audit.crash_probability > 40
-                    ? "text-orange-400"
-                    : "text-emerald-400"
+                    ? "text-warning"
+                    : "text-primary"
               }`}
             >
               {audit.crash_probability}%
             </p>
-            <p className="text-xs text-slate-500">Crash Risk</p>
+            <p className="text-[12px] text-text-secondary">Crash Risk</p>
           </div>
         </div>
 
         {/* Spoon Drain Timeline */}
-        <div className="pt-2">
-          <p className="text-xs text-slate-500 mb-2 uppercase tracking-wide">
+        <div className="pt-grid-1">
+          <p className="text-[12px] text-text-secondary mb-grid-1 uppercase tracking-wide">
             Energy Drain Timeline
           </p>
           <SpoonTimeline
@@ -244,27 +267,27 @@ export default function DailyForecast({
             startingSpoons={startingSpoons}
           />
         </div>
-      </div>
+      </section>
 
       {/* View Toggle — Original vs Optimized */}
       {optimization && (
-        <div className="flex rounded-lg bg-slate-800 p-1">
+        <div className="flex rounded-card bg-surface p-[4px]">
           <button
             onClick={() => setViewMode("original")}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${
               viewMode === "original"
-                ? "bg-slate-700 text-white"
-                : "text-slate-400 hover:text-white"
+                ? "bg-[rgba(255,255,255,0.1)] text-text-primary"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             Original Schedule
           </button>
           <button
             onClick={() => setViewMode("optimized")}
-            className={`flex-1 py-2 text-sm font-medium rounded-md transition ${
+            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${
               viewMode === "optimized"
-                ? "bg-violet-600 text-white"
-                : "text-slate-400 hover:text-white"
+                ? "bg-primary text-background"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
             AI-Optimized
@@ -280,42 +303,44 @@ export default function DailyForecast({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: viewMode === "optimized" ? -20 : 20 }}
           transition={{ duration: 0.2 }}
-          className="space-y-3"
+          className="space-y-grid-2"
         >
           {viewMode === "original" ? (
-            // Original schedule
             audit.event_costs.map((event) => (
               <div
                 key={event.id}
-                className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2"
+                className="glass-card rounded-card p-grid-2 space-y-grid-1"
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <h4 className="text-white font-medium">{event.title}</h4>
-                    <p className="text-sm text-slate-400">
+                    <h4 className="text-text-primary font-medium text-body">
+                      {event.title}
+                    </h4>
+                    <p className="text-data text-text-secondary font-mono">
                       {formatTime(event.start)} — {formatTime(event.end)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-grid-1">
                     <PriorityBadge priority={event.priority} />
                     <CostBadge cost={event.cost} />
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">{event.reason}</p>
+                <p className="text-[12px] text-text-secondary">
+                  {event.reason}
+                </p>
               </div>
             ))
           ) : optimization ? (
-            // Optimized schedule
             <>
               {/* Optimization summary */}
-              <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-4">
-                <p className="text-sm text-violet-300">
+              <div className="bg-primary/10 border border-primary/30 rounded-card p-grid-2">
+                <p className="text-data text-primary">
                   {optimization.optimization_summary}
                 </p>
-                <div className="flex gap-4 mt-2 text-xs text-slate-400">
+                <div className="flex gap-grid-2 mt-grid-1 text-[12px] text-text-secondary">
                   <span>
                     New drain:{" "}
-                    <strong className="text-white">
+                    <strong className="text-text-primary font-mono">
                       {optimization.new_total_drain}
                     </strong>{" "}
                     spoons
@@ -323,11 +348,11 @@ export default function DailyForecast({
                   <span>
                     Crash risk:{" "}
                     <strong
-                      className={
+                      className={`font-mono ${
                         optimization.new_crash_probability > 50
-                          ? "text-orange-400"
-                          : "text-emerald-400"
-                      }
+                          ? "text-warning"
+                          : "text-primary"
+                      }`}
                     >
                       {optimization.new_crash_probability}%
                     </strong>
@@ -338,30 +363,30 @@ export default function DailyForecast({
               {optimization.optimized_events.map((event) => (
                 <div
                   key={event.id}
-                  className={`bg-slate-900 border rounded-xl p-4 space-y-2 ${
+                  className={`glass-card rounded-card p-grid-2 space-y-grid-1 ${
                     event.action === "keep"
-                      ? "border-slate-800"
+                      ? ""
                       : event.action === "move"
-                        ? "border-amber-500/30"
+                        ? "border-warning/30"
                         : event.action === "cancel_suggest"
-                          ? "border-red-500/30"
-                          : "border-emerald-500/30"
+                          ? "border-critical/30"
+                          : "border-primary/30"
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-white font-medium">
+                      <div className="flex items-center gap-grid-1">
+                        <h4 className="text-text-primary font-medium text-body">
                           {event.title}
                         </h4>
                         {event.action !== "keep" && (
                           <span
-                            className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            className={`px-grid-1 py-[2px] rounded text-[12px] font-medium ${
                               event.action === "move"
-                                ? "bg-amber-500/20 text-amber-400"
+                                ? "bg-warning/20 text-warning"
                                 : event.action === "cancel_suggest"
-                                  ? "bg-red-500/20 text-red-400"
-                                  : "bg-emerald-500/20 text-emerald-400"
+                                  ? "bg-critical/20 text-critical"
+                                  : "bg-primary/20 text-primary"
                             }`}
                           >
                             {event.action === "move"
@@ -372,35 +397,61 @@ export default function DailyForecast({
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-slate-400">
+                      <p className="text-data text-text-secondary font-mono">
                         {event.suggested_time
                           ? `${formatTime(event.original_time)} → ${formatTime(event.suggested_time)}`
                           : formatTime(event.original_time)}
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500">{event.note}</p>
+                  <p className="text-[12px] text-text-secondary">
+                    {event.note}
+                  </p>
                 </div>
               ))}
 
               {/* Rest blocks */}
               {optimization.rest_blocks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">
+                <div className="space-y-grid-1">
+                  <p className="text-[12px] text-text-secondary uppercase tracking-wide">
                     Recommended Rest Blocks
                   </p>
                   {optimization.rest_blocks.map((block, i) => (
                     <div
                       key={i}
-                      className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3"
+                      className="bg-primary/5 border border-primary/20 rounded-card p-grid-2 flex items-center gap-grid-2"
                     >
-                      <span className="text-xl">🔋</span>
+                      <svg
+                        className="w-5 h-5 text-primary"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect
+                          x="1"
+                          y="6"
+                          width="18"
+                          height="12"
+                          rx="2"
+                          ry="2"
+                        />
+                        <line x1="23" y1="13" x2="23" y2="11" />
+                      </svg>
                       <div>
-                        <p className="text-sm text-emerald-300 font-medium">
-                          {block.duration_minutes}min Spoon Recharge
+                        <p className="text-data text-primary font-medium">
+                          <span className="font-mono">
+                            {block.duration_minutes}
+                          </span>
+                          min Spoon Recharge
                         </p>
-                        <p className="text-xs text-slate-400">
-                          {formatTime(block.start)} — {block.reason}
+                        <p className="text-[12px] text-text-secondary">
+                          <span className="font-mono">
+                            {formatTime(block.start)}
+                          </span>{" "}
+                          — {block.reason}
                         </p>
                       </div>
                     </div>

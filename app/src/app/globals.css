@@ -2,26 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * SpoonShare Design System — MASTER.md v1.0.0
+ * Core Principle: Reduce Cognitive Load via Visual Silence.
+ */
+
+@layer base {
+    :root {
+        /* MASTER.md Color Palette — OLED Dark Strategy */
+        --color-background: #020617;
+        --color-surface: #0f172a;
+        --color-primary: #2dd4bf;
+        --color-warning: #f59e0b;
+        --color-critical: #e11d48;
+        --color-text-primary: #f8fafc;
+        --color-text-secondary: #94a3b8;
+
+        /* Glassmorphism Card tokens */
+        --glass-bg: rgba(15, 23, 42, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --glass-blur: 12px;
+
+        /* Typography — MASTER.md "Fog-Proof" Scale */
+        --font-sans: "Inter", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+
+        /* Spacing — 8px Grid */
+        --grid: 8px;
+    }
+
+    html {
+        font-size: 16px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        color: var(--color-text-primary);
+        background: var(--color-background);
+        font-family: var(--font-sans);
+        line-height: 1.6;
+    }
+
+    /* MASTER.md §6 — Focus: outline-2 outline-teal-500 */
+    *:focus-visible {
+        outline: 2px solid #2dd4bf;
+        outline-offset: 2px;
+    }
+
+    /* MASTER.md §6 — prefers-reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+    }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+    /* Glassmorphism Card — MASTER.md §4A */
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+    }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+    .text-balance {
+        text-wrap: balance;
+    }
 }

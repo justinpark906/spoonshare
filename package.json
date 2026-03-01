@@ -1,0 +1,12 @@
+{
+  "name": "spoonshare",
+  "private": true,
+  "description": "AI-driven energy management for rare and chronic illness",
+  "scripts": {
+    "install": "cd app && npm install",
+    "dev": "cd app && npm run dev",
+    "build": "cd app && npm run build",
+    "start": "cd app && npm start",
+    "lint": "cd app && npm run lint"
+  }
+}

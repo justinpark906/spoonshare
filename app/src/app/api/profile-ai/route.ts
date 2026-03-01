@@ -27,6 +27,26 @@ const profileSchema = z.object({
     ),
 });
 
+/** True only if the key looks like a real OpenAI key (sk-...) and is not a placeholder. */
+function hasValidOpenAIKey(): boolean {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key || key.length < 20) return false;
+  if (!key.startsWith("sk-")) return false;
+  if (/your_ope|your-openai|placeholder|example\.com/i.test(key)) return false;
+  return true;
+}
+
+/** Default profile when OPENAI_API_KEY is missing or invalid (e.g. local dev). */
+function getDefaultProfile(scores: Record<string, number>) {
+  const avg = Object.values(scores).reduce((a, b) => a + b, 0) / Math.max(1, Object.keys(scores).length);
+  const multiplier = avg >= 7 ? 1.5 : avg >= 4 ? 1.2 : 1.0;
+  return {
+    suggested_multiplier: multiplier,
+    condition_tags: avg >= 6 ? ["General symptom load — add a valid OPENAI_API_KEY for personalized tags"] : [],
+    educational_note: "Profile saved. Add a valid OPENAI_API_KEY to .env.local for AI-derived multiplier and condition tags.",
+  };
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Authenticate the user
@@ -49,18 +69,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Build the phenotype summary for the prompt
-    const phenotypeSummary = PHENOTYPES.map(
-      (p) => `- ${p.name} (${p.hpoCode}): ${scores[p.id] ?? "N/A"}/10`
-    ).join("\n");
+    let result: z.infer<typeof profileSchema>;
 
-    // 4. Set up LangChain with structured output
-    const parser = StructuredOutputParser.fromZodSchema(profileSchema);
+    if (hasValidOpenAIKey()) {
+      try {
+        // 3. Build the phenotype summary for the prompt
+        const phenotypeSummary = PHENOTYPES.map(
+          (p) => `- ${p.name} (${p.hpoCode}): ${scores[p.id] ?? "N/A"}/10`
+        ).join("\n");
 
-    const prompt = ChatPromptTemplate.fromMessages([
-      [
-        "system",
-        `You are a clinical AI assistant specializing in rare and chronic disease energy management.
+        const parser = StructuredOutputParser.fromZodSchema(profileSchema);
+        const prompt = ChatPromptTemplate.fromMessages([
+          [
+            "system",
+            `You are a clinical AI assistant specializing in rare and chronic disease energy management.
 You use the Spoon Theory framework where each "spoon" represents a unit of energy.
 
 Your task: analyze a patient's self-reported HPO phenotype severity scores and determine their energy cost multiplier.
@@ -84,30 +106,41 @@ For condition_tags, infer likely clinical patterns:
 Be empathetic and precise. The educational_note should be one sentence a patient can understand.
 
 {format_instructions}`,
-      ],
-      [
-        "human",
-        `Here are my symptom severity scores:
+          ],
+          [
+            "human",
+            `Here are my symptom severity scores:
 
 {phenotype_summary}
 
 Please analyze my profile and provide the structured output.`,
-      ],
-    ]);
+          ],
+        ]);
 
-    const model = new ChatOpenAI({
-      modelName: "gpt-4o-mini",
-      temperature: 0.3,
-    });
+        const model = new ChatOpenAI({
+          modelName: "gpt-4o-mini",
+          temperature: 0.3,
+        });
 
-    const chain = prompt.pipe(model).pipe(parser);
+        const chain = prompt.pipe(model).pipe(parser);
+        result = await chain.invoke({
+          phenotype_summary: phenotypeSummary,
+          format_instructions: parser.getFormatInstructions(),
+        });
+      } catch (openAiErr: unknown) {
+        // 401 invalid key, rate limit, or other API error — save profile with defaults
+        const code = openAiErr && typeof openAiErr === "object" && "code" in openAiErr ? (openAiErr as { code?: string }).code : null;
+        if (code === "invalid_api_key" || (openAiErr && typeof openAiErr === "object" && "status" in openAiErr && (openAiErr as { status?: number }).status === 401)) {
+          result = getDefaultProfile(scores as Record<string, number>);
+        } else {
+          throw openAiErr;
+        }
+      }
+    } else {
+      result = getDefaultProfile(scores as Record<string, number>);
+    }
 
-    const result = await chain.invoke({
-      phenotype_summary: phenotypeSummary,
-      format_instructions: parser.getFormatInstructions(),
-    });
-
-    // 5. Save to Supabase
+    // 4. Save to Supabase
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
@@ -121,12 +154,11 @@ Please analyze my profile and provide the structured output.`,
     if (updateError) {
       console.error("Supabase update error:", updateError);
       return NextResponse.json(
-        { error: "Failed to save profile" },
+        { error: "Failed to save profile", details: updateError.message },
         { status: 500 }
       );
     }
 
-    // 6. Return the AI analysis
     return NextResponse.json({
       success: true,
       profile: {
@@ -137,9 +169,10 @@ Please analyze my profile and provide the structured output.`,
       },
     });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Internal server error";
     console.error("Profile AI error:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Profile update failed", details: message },
       { status: 500 }
     );
   }

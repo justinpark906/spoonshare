@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import {
-  fetchCurrentWeather,
-  calculateWeatherDeductions,
-} from "@/lib/weather";
-import { calculateMorningBudget } from "@/lib/budget";
+import { fetchCurrentWeather, calculateWeatherDeductions } from "@/lib/weather";
+import { calculateMorningBudget, calculateHrvDeduction } from "@/lib/budget";
 
 export async function POST(request: Request) {
   try {
@@ -19,13 +16,21 @@ export async function POST(request: Request) {
     }
 
     // 2. Parse inputs
-    const { sleep_score, pain_score, wearable_sleep_score, lat, lon } =
-      await request.json();
+    const {
+      sleep_score,
+      pain_score,
+      wearable_sleep_score,
+      hrv_ms,
+      resting_hr,
+      biometric_source,
+      lat,
+      lon,
+    } = await request.json();
 
     if (!sleep_score || !pain_score) {
       return NextResponse.json(
         { error: "Missing sleep_score or pain_score" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -37,10 +42,7 @@ export async function POST(request: Request) {
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "Profile not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
     }
 
     // 4. Fetch weather data
@@ -50,7 +52,9 @@ export async function POST(request: Request) {
     const currentWeather = await fetchCurrentWeather(weatherLat, weatherLon);
 
     // 5. Get pressure from ~12h ago for delta comparison
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+    const twelveHoursAgo = new Date(
+      Date.now() - 12 * 60 * 60 * 1000,
+    ).toISOString();
 
     const { data: previousWeather } = await supabase
       .from("weather_logs")
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
     const weatherResult = calculateWeatherDeductions(
       currentWeather,
       previousPressure,
-      conditionTags
+      conditionTags,
     );
 
     // 7. Store current weather reading for future delta checks
@@ -86,7 +90,58 @@ export async function POST(request: Request) {
       ? Math.max(1, Math.round(wearable_sleep_score / 10))
       : sleep_score;
 
-    // 9. Run the master budget formula
+    // 8b. HRV deduction: compute baseline from last 14 days, then check today's HRV
+    let hrvDeductionResult = {
+      hrv_deduction: 0,
+      reason: null as string | null,
+    };
+    const today = new Date().toISOString().split("T")[0];
+
+    if (hrv_ms != null) {
+      let hrvBaseline: number | null = profile.hrv_baseline ?? null;
+
+      if (hrvBaseline === null) {
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0];
+
+        const { data: recentBiometrics } = await supabase
+          .from("biometrics")
+          .select("hrv_ms")
+          .eq("user_id", user.id)
+          .gte("date", fourteenDaysAgo)
+          .not("hrv_ms", "is", null);
+
+        if (recentBiometrics && recentBiometrics.length >= 3) {
+          hrvBaseline =
+            recentBiometrics.reduce(
+              (sum: number, b: { hrv_ms: number }) => sum + b.hrv_ms,
+              0,
+            ) / recentBiometrics.length;
+
+          await supabase
+            .from("profiles")
+            .update({ hrv_baseline: hrvBaseline })
+            .eq("id", user.id);
+        }
+      }
+
+      hrvDeductionResult = calculateHrvDeduction(hrv_ms, hrvBaseline);
+
+      await supabase.from("biometrics").upsert(
+        {
+          user_id: user.id,
+          date: today,
+          hrv_ms: hrv_ms ?? null,
+          resting_hr: resting_hr ?? null,
+          sleep_score: wearable_sleep_score ?? null,
+          source: biometric_source ?? "manual",
+        },
+        { onConflict: "user_id,date" },
+      );
+    }
+
+    // 9. Run the master budget formula (now includes HRV deduction)
     const budgetResult = calculateMorningBudget(
       {
         baseline_spoons: profile.baseline_spoons,
@@ -94,13 +149,15 @@ export async function POST(request: Request) {
         sleep_score: effectiveSleep,
         pain_score,
         weather_deduction: weatherResult.weather_deduction,
+        hrv_deduction: hrvDeductionResult.hrv_deduction,
       },
-      weatherResult.reasons
+      [
+        ...weatherResult.reasons,
+        ...(hrvDeductionResult.reason ? [hrvDeductionResult.reason] : []),
+      ],
     );
 
     // 10. Save to daily_logs (upsert for today)
-    const today = new Date().toISOString().split("T")[0];
-
     const { error: logError } = await supabase.from("daily_logs").upsert(
       {
         user_id: user.id,
@@ -110,20 +167,21 @@ export async function POST(request: Request) {
         sleep_score: effectiveSleep,
         pain_score,
         weather_deduction: budgetResult.weather_deduction,
+        hrv_deduction: hrvDeductionResult.hrv_deduction,
         wearable_sleep_score: wearable_sleep_score ?? null,
         deduction_reasons: budgetResult.deduction_reasons,
         pressure_hpa: currentWeather.pressure_hpa,
         pressure_delta: weatherResult.pressure_delta,
         temperature_c: currentWeather.temperature_c,
       },
-      { onConflict: "user_id,date" }
+      { onConflict: "user_id,date" },
     );
 
     if (logError) {
       console.error("Daily log save error:", logError);
       return NextResponse.json(
         { error: "Failed to save daily log" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -136,6 +194,7 @@ export async function POST(request: Request) {
         sleep_factor: budgetResult.sleep_factor,
         pain_deduction: budgetResult.pain_deduction,
         weather_deduction: budgetResult.weather_deduction,
+        hrv_deduction: budgetResult.hrv_deduction,
         deduction_reasons: budgetResult.deduction_reasons,
       },
       weather: {
@@ -149,7 +208,7 @@ export async function POST(request: Request) {
     console.error("Morning audit error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

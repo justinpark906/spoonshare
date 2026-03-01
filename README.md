@@ -46,6 +46,17 @@ Run the SQL migrations in the Supabase SQL Editor, in order:
 2. `app/supabase-schema-phase2.sql` — weather_logs, daily_logs
 3. `app/supabase-schema-phase4.sql` — shared_access, daily_logs columns, realtime
 4. `app/supabase-schema-phase5.sql` — user_notes, reports
+5. `app/supabase-schema-phase6-biometrics.sql` — biometrics, manual_events, hrv_baseline (profiles), hrv_deduction (daily_logs)
+
+### 4. Disable email confirmation (optional)
+
+Supabase requires new users to confirm their email by default. For local dev or hackathons you can turn this off:
+
+1. In [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Authentication** → **Providers** → **Email**.
+2. Turn **off** “Confirm email”.
+3. New signups can use the app immediately without clicking a link.
+
+(Re-enable for production so only real addresses can sign in.)
 
 ---
 

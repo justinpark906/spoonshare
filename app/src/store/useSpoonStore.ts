@@ -18,6 +18,7 @@ export interface DailyBudget {
   sleep_factor: number;
   pain_deduction: number;
   weather_deduction: number;
+  hrv_deduction?: number;
   deduction_reasons: string[];
 }
 
@@ -248,6 +249,7 @@ export const useSpoonStore = create<SpoonState>()(
               sleep_factor: dailyLog.sleep_score / 10,
               pain_deduction: dailyLog.pain_score / 2,
               weather_deduction: dailyLog.weather_deduction,
+              hrv_deduction: dailyLog.hrv_deduction ?? 0,
               deduction_reasons: dailyLog.deduction_reasons || [],
             };
             updates.weatherInfo = {
