@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       console.error("Manual events list error:", error);
       return NextResponse.json(
         { error: "Failed to list events" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     console.error("Manual events GET error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -78,12 +78,13 @@ export async function POST(request: Request) {
       start_time,
       end_time,
       notes,
+      multiplier_applied = false,
     } = body;
 
     if (!title || spoon_cost == null || !start_time) {
       return NextResponse.json(
         { error: "Missing required fields: title, spoon_cost, start_time" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -91,20 +92,27 @@ export async function POST(request: Request) {
     if (cost < 1 || cost > 10) {
       return NextResponse.json(
         { error: "spoon_cost must be between 1 and 10" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const validCategories = ["rest", "light", "moderate", "heavy"];
     const cat = validCategories.includes(category) ? category : "moderate";
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("activity_multiplier")
-      .eq("id", user.id)
-      .single();
-    const multiplier = Number(profile?.activity_multiplier) || 1;
-    const adjustedCost = Math.max(1, Math.min(10, Math.round(cost * multiplier)));
+    let adjustedCost: number;
+    if (multiplier_applied) {
+      // AI prediction already applied the disease multiplier — just clamp
+      adjustedCost = Math.max(1, Math.min(10, Math.round(cost)));
+    } else {
+      // Manual override — apply disease multiplier server-side
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("activity_multiplier")
+        .eq("id", user.id)
+        .single();
+      const multiplier = Number(profile?.activity_multiplier) || 1;
+      adjustedCost = Math.max(1, Math.min(10, Math.round(cost * multiplier)));
+    }
 
     const { data, error } = await supabase
       .from("manual_events")
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
       console.error("Manual event insert error:", error);
       return NextResponse.json(
         { error: "Failed to create event" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -156,7 +164,7 @@ export async function POST(request: Request) {
     console.error("Manual events POST error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

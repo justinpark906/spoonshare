@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSpoonStore } from "@/store/useSpoonStore";
+import { useSpoonPrediction } from "@/hooks/useSpoonPrediction";
 
 export interface ManualEvent {
   id: string;
@@ -17,14 +18,31 @@ export interface ManualEvent {
 
 export default function SpoonLedger() {
   const syncWithSupabase = useSpoonStore((s) => s.syncWithSupabase);
+  const effectiveSpoons = useSpoonStore((s) => s.effectiveSpoons);
   const [events, setEvents] = useState<ManualEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
-  const [spoonCost, setSpoonCost] = useState(5);
-  const [category, setCategory] = useState<"rest" | "light" | "moderate" | "heavy">("moderate");
+  const [category, setCategory] = useState<
+    "rest" | "light" | "moderate" | "heavy"
+  >("moderate");
   const [notes, setNotes] = useState("");
+
+  // AI prediction
+  const {
+    prediction,
+    isPredicting,
+    overrideMode,
+    setOverrideMode,
+    overrideCost,
+    setOverrideCost,
+    finalCost,
+    multiplierApplied,
+    wouldGoNegative,
+    predict,
+    reset: resetPrediction,
+  } = useSpoonPrediction(effectiveSpoons);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -45,6 +63,20 @@ export default function SpoonLedger() {
     fetchEvents();
   }, [fetchEvents]);
 
+  function handleTitleChange(value: string) {
+    setTitle(value);
+    predict(value, category);
+  }
+
+  function handleCategoryChange(
+    value: "rest" | "light" | "moderate" | "heavy",
+  ) {
+    setCategory(value);
+    if (title.trim().length >= 3) {
+      predict(title, value);
+    }
+  }
+
   async function handleAdd() {
     if (!title.trim()) return;
     setSubmitting(true);
@@ -55,17 +87,18 @@ export default function SpoonLedger() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
-          spoon_cost: spoonCost,
+          spoon_cost: finalCost,
           category,
           start_time: startTime.toISOString(),
           notes: notes.trim() || null,
+          multiplier_applied: multiplierApplied,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setTitle("");
-        setSpoonCost(5);
         setNotes("");
+        resetPrediction();
         await fetchEvents();
         await syncWithSupabase();
       }
@@ -146,47 +179,52 @@ export default function SpoonLedger() {
           >
             <div className="px-grid-3 pb-grid-3 space-y-grid-3">
               {/* Add event form */}
-              <div className="space-y-grid-2">
+              <div
+                className={`space-y-grid-2 rounded-card p-grid-2 -mx-grid-2 border transition-colors ${
+                  wouldGoNegative && prediction
+                    ? "border-critical bg-critical/5"
+                    : "border-transparent"
+                }`}
+              >
                 <label className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
                   Log an activity
                 </label>
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="e.g. Grocery run, Phone call..."
                   className="w-full rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-grid-2 py-[10px] text-text-primary placeholder:text-text-secondary/60 focus:border-primary focus:ring-1 focus:ring-primary outline-none text-data"
                 />
                 <div className="flex flex-wrap gap-grid-2 items-center">
-                  <div className="flex items-center gap-grid-1">
-                    <label className="text-data text-text-secondary">Spoons:</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={spoonCost}
-                      onChange={(e) =>
-                        setSpoonCost(Math.min(10, Math.max(1, Number(e.target.value) || 1)))
-                      }
-                      className="w-14 rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-2 py-1.5 text-text-primary font-mono text-data text-center"
-                    />
-                  </div>
                   <select
                     value={category}
                     onChange={(e) =>
-                      setCategory(e.target.value as "rest" | "light" | "moderate" | "heavy")
+                      handleCategoryChange(
+                        e.target.value as
+                          | "rest"
+                          | "light"
+                          | "moderate"
+                          | "heavy",
+                      )
                     }
                     className="rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-grid-2 py-1.5 text-text-primary text-data"
                   >
-                    {(["rest", "light", "moderate", "heavy"] as const).map((c) => (
-                      <option key={c} value={c}>
-                        {categoryLabel[c]}
-                      </option>
-                    ))}
+                    {(["rest", "light", "moderate", "heavy"] as const).map(
+                      (c) => (
+                        <option key={c} value={c}>
+                          {categoryLabel[c]}
+                        </option>
+                      ),
+                    )}
                   </select>
                   <button
                     onClick={handleAdd}
-                    disabled={submitting || !title.trim()}
+                    disabled={
+                      submitting ||
+                      !title.trim() ||
+                      (isPredicting && !overrideMode)
+                    }
                     className="px-grid-2 py-1.5 rounded-card bg-primary hover:bg-primary/80 disabled:opacity-50 text-background text-data font-medium transition-colors"
                   >
                     {submitting ? "Adding..." : "Add"}
@@ -199,9 +237,99 @@ export default function SpoonLedger() {
                   placeholder="Notes (optional)"
                   className="w-full rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-grid-2 py-1.5 text-text-secondary text-data placeholder:text-text-secondary/60 focus:border-primary outline-none"
                 />
-                <p className="text-[12px] text-text-secondary/80">
-                  Activity spoon changes are adjusted by your pacing ratio.
-                </p>
+
+                {/* AI Energy Forecast */}
+                {isPredicting && (
+                  <div className="space-y-1 pt-1">
+                    <p className="text-[11px] text-primary font-medium">
+                      Calculating energy impact...
+                    </p>
+                    <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary/40 rounded-full animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                )}
+
+                {prediction && !isPredicting && !overrideMode && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] text-text-secondary">
+                        AI Estimate:{" "}
+                        <span className="font-mono font-semibold text-text-primary">
+                          {prediction.finalCost}
+                        </span>{" "}
+                        spoons
+                        {prediction.multiplier > 1 && (
+                          <span className="text-text-secondary/60">
+                            {" "}
+                            ({prediction.baseCost} &times;{" "}
+                            {prediction.multiplier}x)
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOverrideMode(true)}
+                        className="text-[11px] text-text-secondary/60 hover:text-text-secondary cursor-pointer"
+                      >
+                        I know better
+                      </button>
+                    </div>
+                    <div className="h-2 bg-primary/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          wouldGoNegative ? "bg-critical" : "bg-primary"
+                        }`}
+                        style={{
+                          width: `${(prediction.finalCost / 10) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-text-secondary/80">
+                      {prediction.reason}
+                    </p>
+                    {prediction.warning && (
+                      <p className="text-[11px] text-critical font-medium">
+                        {prediction.warning}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {overrideMode && (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[12px] text-text-secondary">
+                        Manual cost:{" "}
+                        <span className="font-mono font-semibold text-text-primary">
+                          {overrideCost}
+                        </span>{" "}
+                        spoons
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setOverrideMode(false)}
+                        className="text-[11px] text-primary cursor-pointer"
+                      >
+                        Use AI estimate
+                      </button>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      value={overrideCost}
+                      onChange={(e) => setOverrideCost(Number(e.target.value))}
+                      className="w-full accent-primary"
+                    />
+                  </div>
+                )}
+
+                {!prediction && !isPredicting && (
+                  <p className="text-[12px] text-text-secondary/80">
+                    AI will estimate the energy cost as you type.
+                  </p>
+                )}
               </div>
 
               {/* Today's logged events */}
@@ -230,8 +358,13 @@ export default function SpoonLedger() {
                             <span className="text-data text-text-primary font-medium">
                               {ev.title}
                             </span>
-                            <span className={`text-[12px] ml-2 ${isRestorative ? "text-primary" : "text-text-secondary"}`}>
-                              {formatTime(ev.start_time)} · {categoryLabel[ev.category] ?? ev.category} · {sign}{ev.spoon_cost} spoons
+                            <span
+                              className={`text-[12px] ml-2 ${isRestorative ? "text-primary" : "text-text-secondary"}`}
+                            >
+                              {formatTime(ev.start_time)} ·{" "}
+                              {categoryLabel[ev.category] ?? ev.category} ·{" "}
+                              {sign}
+                              {ev.spoon_cost} spoons
                             </span>
                           </div>
                           <button

@@ -19,6 +19,8 @@ export interface SpoonProfile {
 export interface DailyBudget {
   starting_spoons: number;
   effective_baseline: number;
+  sleep_score: number;
+  pain_score: number;
   sleep_factor: number;
   pain_deduction: number;
   weather_deduction: number;
@@ -260,6 +262,8 @@ export const useSpoonStore = create<SpoonState>()(
             updates.dailyBudget = {
               starting_spoons: dailyLog.starting_spoons,
               effective_baseline: dailyLog.baseline_used,
+              sleep_score: dailyLog.sleep_score,
+              pain_score: dailyLog.pain_score,
               sleep_factor: dailyLog.sleep_score / 10,
               pain_deduction: dailyLog.pain_score / 2,
               weather_deduction: dailyLog.weather_deduction,

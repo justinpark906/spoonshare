@@ -26,7 +26,7 @@ const OWM_BASE = "https://api.openweathermap.org/data/2.5/weather";
  */
 export async function fetchCurrentWeather(
   lat: number,
-  lon: number
+  lon: number,
 ): Promise<WeatherData> {
   const apiKey = process.env.OPENWEATHERMAP_API_KEY;
 
@@ -34,7 +34,7 @@ export async function fetchCurrentWeather(
     // Return realistic demo data for hackathon/testing
     return {
       pressure_hpa: 1005,
-      temperature_c: 8,
+      temperature_c: 0,
       humidity: 78,
       weather_condition: "overcast clouds",
     };
@@ -67,7 +67,7 @@ export async function fetchCurrentWeather(
 export function calculateWeatherDeductions(
   current: WeatherData,
   previousPressure: number | null,
-  conditionTags: string[]
+  conditionTags: string[],
 ): WeatherDeductionResult {
   let weatherDeduction = 0;
   const reasons: string[] = [];
@@ -80,7 +80,7 @@ export function calculateWeatherDeductions(
     if (pressureDelta < -5) {
       weatherDeduction += 3;
       reasons.push(
-        `Barometric pressure dropped ${Math.abs(pressureDelta).toFixed(1)} hPa in 12h (storm approaching)`
+        `Barometric pressure dropped ${Math.abs(pressureDelta).toFixed(1)} hPa in 12h (storm approaching)`,
       );
     }
   }
@@ -90,13 +90,13 @@ export function calculateWeatherDeductions(
     (tag) =>
       tag.toLowerCase().includes("pain") ||
       tag.toLowerCase().includes("eds") ||
-      tag.toLowerCase().includes("fibro")
+      tag.toLowerCase().includes("fibro"),
   );
 
   if (current.temperature_c < 10 && hasChronicPain) {
     weatherDeduction += 2;
     reasons.push(
-      `Cold temperature (${current.temperature_c.toFixed(1)}°C) with chronic pain profile`
+      `Cold temperature (${current.temperature_c.toFixed(1)}°C) with chronic pain profile`,
     );
   }
 

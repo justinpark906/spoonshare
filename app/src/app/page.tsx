@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LandingPage() {
-  const { isLoading, syncWithSupabase } = useSpoonStore();
+  const { isLoading, isAuthenticated, syncWithSupabase } = useSpoonStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -46,14 +46,16 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="flex justify-center pt-grid-2">
-            <button
-              onClick={() => router.push("/login")}
-              className="px-[40px] py-[16px] rounded-full bg-white text-[#4BA8A7] font-semibold text-[18px] transition-all duration-300 cursor-pointer shadow-[0_0_30px_rgba(75,168,167,0.25)] hover:shadow-[0_0_50px_rgba(75,168,167,0.4)] border border-[#4BA8A7]/20"
-            >
-              Sign In
-            </button>
-          </div>
+          {!isAuthenticated && (
+            <div className="flex justify-center pt-grid-2">
+              <button
+                onClick={() => router.push("/login")}
+                className="px-[40px] py-[16px] rounded-full bg-white text-[#4BA8A7] font-semibold text-[18px] transition-all duration-300 cursor-pointer shadow-[0_0_30px_rgba(75,168,167,0.25)] hover:shadow-[0_0_50px_rgba(75,168,167,0.4)] border border-[#4BA8A7]/20"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

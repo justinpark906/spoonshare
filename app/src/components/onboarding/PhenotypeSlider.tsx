@@ -31,7 +31,6 @@ export default function PhenotypeSlider({ phenotype, value, onChange }: Props) {
         <span className="text-3xl">{phenotype.icon}</span>
         <div>
           <h3 className="text-lg font-semibold text-white">{phenotype.name}</h3>
-          <p className="text-sm text-slate-400">{phenotype.hpoCode}</p>
         </div>
       </div>
 
