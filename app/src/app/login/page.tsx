@@ -54,12 +54,6 @@ export default function LoginPage() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes:
-          "https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.readonly",
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
       },
     });
 
@@ -120,7 +114,7 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            Sign in with Google (+ Calendar Access)
+            Sign in with Google
           </button>
 
           <div className="flex items-center gap-3">
@@ -192,8 +186,7 @@ export default function LoginPage() {
           </p>
 
           <p className="text-xs text-text-muted text-center">
-            Google sign-in grants read-only access to your calendar for schedule
-            analysis. We never modify your events.
+            You can optionally connect Google Calendar later from the dashboard.
           </p>
         </div>
       </div>

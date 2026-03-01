@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSpoonStore } from "@/store/useSpoonStore";
 import { useSpoonPrediction } from "@/hooks/useSpoonPrediction";
+import { createClient } from "@/lib/supabase/client";
 
 interface CalendarEvent {
   id: string;
@@ -234,10 +235,32 @@ export default function CalendarView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-body font-semibold text-text-primary">Calendar</h3>
-        {hasGoogle && (
+        {hasGoogle ? (
           <span className="text-[11px] text-primary bg-primary/10 px-2 py-0.5 rounded-pill">
             Google Calendar
           </span>
+        ) : (
+          <button
+            type="button"
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: {
+                  redirectTo: `${window.location.origin}/auth/callback`,
+                  scopes:
+                    "https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar.readonly",
+                  queryParams: {
+                    access_type: "offline",
+                    prompt: "consent",
+                  },
+                },
+              });
+            }}
+            className="text-[11px] text-primary hover:text-primary-light cursor-pointer"
+          >
+            Connect Google Calendar
+          </button>
         )}
       </div>
 
