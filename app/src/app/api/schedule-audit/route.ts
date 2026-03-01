@@ -231,7 +231,8 @@ Please analyze each event and provide the structured output.`,
       format_instructions: auditParser.getFormatInstructions(),
     });
 
-    const multiplier = Number(profile.current_multiplier) || 1;
+    const activityMultiplier = Number(profile.activity_multiplier) ?? 1.0;
+    const multiplier = activityMultiplier;
     const adjustedEventCosts = auditResult.event_costs.map((event) => ({
       ...event,
       cost: Math.max(1, Math.min(10, Math.round(event.cost * multiplier))),

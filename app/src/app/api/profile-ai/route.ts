@@ -5,6 +5,10 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { PHENOTYPES } from "@/lib/phenotypes";
+import {
+  userSymptomLabels,
+  findBestMatchingDisease,
+} from "@/lib/disease-match";
 
 // Zod schema for the structured AI output
 const profileSchema = z.object({
@@ -140,15 +144,33 @@ Please analyze my profile and provide the structured output.`,
       result = getDefaultProfile(scores as Record<string, number>);
     }
 
-    // 4. Save to Supabase
+    // 4. Match to GARD disease (HPO overlap) and set activity_multiplier
+    const profileUpdate: Record<string, unknown> = {
+      symptom_data: scores,
+      current_multiplier: result.suggested_multiplier,
+      condition_tags: result.condition_tags,
+      educational_note: result.educational_note,
+    };
+    const userLabels = userSymptomLabels(
+      result.condition_tags,
+      scores as Record<string, number>
+    );
+    const matchedDisease = await findBestMatchingDisease(supabase, userLabels);
+    if (matchedDisease) {
+      profileUpdate.disease_id = matchedDisease.id;
+      profileUpdate.identified_condition = matchedDisease.name;
+      profileUpdate.activity_multiplier = matchedDisease.activity_multiplier;
+      profileUpdate.impact_tier = matchedDisease.impact_tier;
+    } else {
+      profileUpdate.disease_id = null;
+      profileUpdate.identified_condition = null;
+      profileUpdate.activity_multiplier = 1.0;
+      profileUpdate.impact_tier = null;
+    }
+
     const { error: updateError } = await supabase
       .from("profiles")
-      .update({
-        symptom_data: scores,
-        current_multiplier: result.suggested_multiplier,
-        condition_tags: result.condition_tags,
-        educational_note: result.educational_note,
-      })
+      .update(profileUpdate)
       .eq("id", user.id);
 
     if (updateError) {
@@ -166,6 +188,9 @@ Please analyze my profile and provide the structured output.`,
         condition_tags: result.condition_tags,
         educational_note: result.educational_note,
         symptom_data: scores,
+        identified_condition: matchedDisease?.name ?? null,
+        activity_multiplier: matchedDisease?.activity_multiplier ?? 1.0,
+        impact_tier: matchedDisease?.impact_tier ?? null,
       },
     });
   } catch (err) {

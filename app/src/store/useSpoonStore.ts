@@ -7,9 +7,13 @@ export interface SpoonProfile {
   email: string;
   baseline_spoons: number;
   current_multiplier: number;
+  activity_multiplier: number;
   symptom_data: Record<string, number>;
   condition_tags: string[];
   educational_note: string | null;
+  disease_id?: string | null;
+  identified_condition?: string | null;
+  impact_tier?: 1 | 2 | 3 | null;
 }
 
 export interface DailyBudget {
@@ -88,6 +92,9 @@ interface SpoonState {
   // Computed spoon budget (from profile multiplier)
   effectiveSpoons: number;
 
+  // Disease-aware activity scaling (from linked GARD disease)
+  activityMultiplier: number;
+
   // Daily budget (from morning audit)
   dailyBudget: DailyBudget | null;
   weatherInfo: WeatherInfo | null;
@@ -122,6 +129,7 @@ export const useSpoonStore = create<SpoonState>()(
       isLoading: false,
       isAuthenticated: false,
       effectiveSpoons: 20,
+      activityMultiplier: 1.0,
       dailyBudget: null,
       weatherInfo: null,
       hasCheckedInToday: false,
@@ -135,7 +143,10 @@ export const useSpoonStore = create<SpoonState>()(
         set({
           profile,
           isAuthenticated: true,
-          effectiveSpoons: 20,
+          activityMultiplier: profile.activity_multiplier ?? 1.0,
+          effectiveSpoons: Math.round(
+            profile.baseline_spoons / profile.current_multiplier,
+          ),
         }),
 
       setLoading: (loading) => set({ isLoading: loading }),
@@ -218,9 +229,13 @@ export const useSpoonStore = create<SpoonState>()(
             email: profile.email,
             baseline_spoons: profile.baseline_spoons,
             current_multiplier: profile.current_multiplier,
+            activity_multiplier: profile.activity_multiplier ?? 1.0,
             symptom_data: profile.symptom_data || {},
             condition_tags: profile.condition_tags || [],
             educational_note: profile.educational_note,
+            disease_id: profile.disease_id ?? null,
+            identified_condition: profile.identified_condition ?? null,
+            impact_tier: profile.impact_tier ?? null,
           };
 
           const today = new Date().toISOString().split("T")[0];
@@ -235,7 +250,10 @@ export const useSpoonStore = create<SpoonState>()(
             profile: spoonProfile,
             isAuthenticated: true,
             isLoading: false,
-            effectiveSpoons: 20,
+            activityMultiplier: spoonProfile.activity_multiplier ?? 1.0,
+            effectiveSpoons: Math.round(
+              spoonProfile.baseline_spoons / spoonProfile.current_multiplier,
+            ),
           };
 
           if (dailyLog) {
@@ -276,6 +294,7 @@ export const useSpoonStore = create<SpoonState>()(
           profile: null,
           isAuthenticated: false,
           effectiveSpoons: 20,
+          activityMultiplier: 1.0,
           dailyBudget: null,
           weatherInfo: null,
           hasCheckedInToday: false,
@@ -291,6 +310,7 @@ export const useSpoonStore = create<SpoonState>()(
         profile: state.profile,
         isAuthenticated: state.isAuthenticated,
         effectiveSpoons: state.effectiveSpoons,
+        activityMultiplier: state.activityMultiplier,
         dailyBudget: state.dailyBudget,
         weatherInfo: state.weatherInfo,
         hasCheckedInToday: state.hasCheckedInToday,

@@ -62,6 +62,13 @@ export default function OnboardingWizard() {
         throw new Error(data.error || "Failed to analyze profile");
       }
 
+      const data = await res.json();
+      if (data.profile?.identified_condition) {
+        sessionStorage.setItem(
+          "spoonshare_onboarding_disease_message",
+          `We noticed your symptoms align with ${data.profile.identified_condition}. We've adjusted your energy budget to reflect this.`
+        );
+      }
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

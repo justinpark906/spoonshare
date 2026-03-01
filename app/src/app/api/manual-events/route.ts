@@ -100,10 +100,10 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("current_multiplier")
+      .select("activity_multiplier")
       .eq("id", user.id)
       .single();
-    const multiplier = Number(profile?.current_multiplier) || 1;
+    const multiplier = Number(profile?.activity_multiplier) || 1;
     const adjustedCost = Math.max(1, Math.min(10, Math.round(cost * multiplier)));
 
     const { data, error } = await supabase

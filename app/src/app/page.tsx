@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useSpoonStore } from "@/store/useSpoonStore";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -31,10 +31,20 @@ export default function HomePage() {
   } = useSpoonStore();
   const router = useRouter();
   const supabase = createClient();
+  const [onboardingDiseaseMessage, setOnboardingDiseaseMessage] = useState<string | null>(null);
 
   useEffect(() => {
     syncWithSupabase();
   }, [syncWithSupabase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const msg = sessionStorage.getItem("spoonshare_onboarding_disease_message");
+    if (msg) {
+      setOnboardingDiseaseMessage(msg);
+      sessionStorage.removeItem("spoonshare_onboarding_disease_message");
+    }
+  }, []);
 
   const handleCheckInComplete = useCallback(() => {
     syncWithSupabase();
@@ -211,6 +221,19 @@ export default function HomePage() {
           </div>
         )}
 
+        {onboardingDiseaseMessage && (
+          <div className="glass-card p-grid-3 border-primary/30 rounded-card">
+            <p className="text-body text-primary">{onboardingDiseaseMessage}</p>
+            <button
+              type="button"
+              onClick={() => setOnboardingDiseaseMessage(null)}
+              className="mt-grid-2 text-data text-text-secondary hover:text-text-primary"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Morning Check-In */}
         {hasCompletedOnboarding && !hasCheckedInToday && (
           <MorningCheckIn onComplete={handleCheckInComplete} />
@@ -286,6 +309,36 @@ export default function HomePage() {
                 </button>
                 <p className="text-[12px] text-text-secondary/60">
                   Uses Google Calendar if connected, or demo events for preview
+                </p>
+              </section>
+            )}
+
+            {/* Condition Tier badge — disease-aware pacing */}
+            {(profile.impact_tier != null || (profile.activity_multiplier != null && profile.activity_multiplier > 1)) && (
+              <section className="glass-card rounded-card p-grid-3">
+                <div className="flex items-center gap-grid-2 flex-wrap">
+                  <span className="px-grid-2 py-grid-1 rounded-pill bg-primary/15 text-primary text-data font-medium border border-primary/25">
+                    {profile.impact_tier === 3
+                      ? "Tier 3 (Severe)"
+                      : profile.impact_tier === 2
+                        ? "Tier 2 (Moderate)"
+                        : profile.impact_tier === 1
+                          ? "Tier 1 (Mild)"
+                          : "Condition tier"}
+                  </span>
+                  {profile.activity_multiplier != null && profile.activity_multiplier > 1 && (
+                    <span className="text-data text-text-secondary">
+                      Activity costs ×{profile.activity_multiplier.toFixed(1)}
+                    </span>
+                  )}
+                  {profile.identified_condition && (
+                    <span className="text-data text-text-secondary">
+                      {profile.identified_condition}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[12px] text-text-secondary/80 mt-grid-1">
+                  Your activity costs are scaled to reflect your condition.
                 </p>
               </section>
             )}
