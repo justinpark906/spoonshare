@@ -19,7 +19,7 @@ export interface MatchedDisease {
 export function userSymptomLabels(
   conditionTags: string[],
   scores: Record<string, number>,
-  scoreThreshold: number = 5
+  scoreThreshold: number = 5,
 ): string[] {
   const labels = new Set<string>();
   conditionTags.forEach((t) => labels.add(t.trim()));
@@ -41,7 +41,7 @@ export function userSymptomLabels(
  */
 export async function findBestMatchingDisease(
   supabase: SupabaseClient,
-  userLabels: string[]
+  userLabels: string[],
 ): Promise<MatchedDisease | null> {
   if (userLabels.length === 0) return null;
 
@@ -52,7 +52,12 @@ export async function findBestMatchingDisease(
   if (error || !diseases?.length) return null;
 
   const normalizedLabels = userLabels.map((l) => l.trim().toLowerCase());
-  let best: { id: string; name: string; impact_tier: number; overlap: number } | null = null;
+  let best: {
+    id: string;
+    name: string;
+    impact_tier: number;
+    overlap: number;
+  } | null = null;
 
   for (const d of diseases) {
     const terms: string[] = Array.isArray(d.hpo_terms) ? d.hpo_terms : [];
@@ -60,7 +65,10 @@ export async function findBestMatchingDisease(
     let overlap = 0;
     for (const label of normalizedLabels) {
       if (termSet.has(label)) overlap++;
-      else if ([...termSet].some((t) => t.includes(label) || label.includes(t))) overlap++;
+      else if (
+        Array.from(termSet).some((t) => t.includes(label) || label.includes(t))
+      )
+        overlap++;
     }
     if (overlap > 0 && (!best || overlap > best.overlap)) {
       best = {
