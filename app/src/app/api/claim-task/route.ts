@@ -32,13 +32,20 @@ export async function POST(request: Request) {
     const ownerId = sharedAccess.owner_id;
     const today = new Date().toISOString().split("T")[0];
 
-    // 2. Get today's daily log
-    const { data: dailyLog, error: logError } = await supabase
-      .from("daily_logs")
-      .select("*")
-      .eq("user_id", ownerId)
-      .eq("date", today)
-      .single();
+    // 2. Get owner multiplier and today's daily log
+    const [{ data: profile }, { data: dailyLog, error: logError }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("current_multiplier")
+        .eq("id", ownerId)
+        .single(),
+      supabase
+        .from("daily_logs")
+        .select("*")
+        .eq("user_id", ownerId)
+        .eq("date", today)
+        .single(),
+    ]);
 
     if (logError || !dailyLog) {
       return NextResponse.json(
@@ -48,18 +55,23 @@ export async function POST(request: Request) {
     }
 
     // 3. Add the claimed task and refund spoons
+    const multiplier = Number(profile?.current_multiplier) || 1;
+    const adjustedSpoonCost = Math.max(
+      1,
+      Math.min(10, Math.round(Number(spoon_cost) * multiplier)),
+    );
+
     const existingClaims = dailyLog.claimed_tasks || [];
     const newClaim = {
       event_id,
       event_title: event_title || "Unknown task",
-      spoon_cost,
+      spoon_cost: adjustedSpoonCost,
       caregiver_name: caregiver_name || sharedAccess.label,
       claimed_at: new Date().toISOString(),
     };
 
-    const newCurrentSpoons =
-      (dailyLog.current_spoons ?? dailyLog.starting_spoons) +
-      Math.round(spoon_cost);
+    const current = dailyLog.current_spoons ?? dailyLog.starting_spoons ?? 0;
+    const newCurrentSpoons = Math.min(20, current + adjustedSpoonCost);
 
     const { error: updateError } = await supabase
       .from("daily_logs")
@@ -79,7 +91,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `${caregiver_name || sharedAccess.label} claimed "${event_title}". +${Math.round(spoon_cost)} spoons restored.`,
+      message: `${caregiver_name || sharedAccess.label} claimed "${event_title}". +${adjustedSpoonCost} spoons restored.`,
       new_spoons: newCurrentSpoons,
     });
   } catch (err) {

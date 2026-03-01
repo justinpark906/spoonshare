@@ -84,13 +84,12 @@ function SpoonTimeline({
             <div className="flex-1">
               <div className="h-grid-1 bg-surface rounded-pill overflow-hidden">
                 <motion.div
-                  className={`h-full rounded-pill ${
-                    remaining <= 0
+                  className={`h-full rounded-pill ${remaining <= 0
                       ? "bg-critical"
                       : remaining <= 3
                         ? "bg-warning"
                         : "bg-primary"
-                  }`}
+                    }`}
                   initial={{ width: "100%" }}
                   animate={{ width: `${percentage}%` }}
                   transition={{ duration: 0.5, delay: 0.1 }}
@@ -98,9 +97,8 @@ function SpoonTimeline({
               </div>
             </div>
             <span
-              className={`w-grid-4 text-right text-[12px] font-mono ${
-                remaining <= 0 ? "text-critical" : "text-text-secondary"
-              }`}
+              className={`w-grid-4 text-right text-[12px] font-mono ${remaining <= 0 ? "text-critical" : "text-text-secondary"
+                }`}
             >
               {remaining}
             </span>
@@ -212,6 +210,9 @@ export default function DailyForecast({
               <p className="text-data text-text-secondary">
                 {audit.risk_summary}
               </p>
+              <p className="text-[12px] text-text-secondary/80">
+                Event spoon costs are adjusted by your pacing ratio.
+              </p>
             </div>
           </div>
           {usingDemo && (
@@ -231,11 +232,10 @@ export default function DailyForecast({
           </div>
           <div className="text-center">
             <p
-              className={`text-[24px] font-bold font-mono ${
-                audit.total_projected_drain > startingSpoons
+              className={`text-[24px] font-bold font-mono ${audit.total_projected_drain > startingSpoons
                   ? "text-critical"
                   : "text-text-primary"
-              }`}
+                }`}
             >
               {audit.total_projected_drain}
             </p>
@@ -243,13 +243,12 @@ export default function DailyForecast({
           </div>
           <div className="text-center">
             <p
-              className={`text-[24px] font-bold font-mono ${
-                audit.crash_probability > 70
+              className={`text-[24px] font-bold font-mono ${audit.crash_probability > 70
                   ? "text-critical"
                   : audit.crash_probability > 40
                     ? "text-warning"
                     : "text-primary"
-              }`}
+                }`}
             >
               {audit.crash_probability}%
             </p>
@@ -274,21 +273,19 @@ export default function DailyForecast({
         <div className="flex rounded-card bg-surface p-[4px]">
           <button
             onClick={() => setViewMode("original")}
-            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${
-              viewMode === "original"
+            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${viewMode === "original"
                 ? "bg-[rgba(255,255,255,0.1)] text-text-primary"
                 : "text-text-secondary hover:text-text-primary"
-            }`}
+              }`}
           >
             Original Schedule
           </button>
           <button
             onClick={() => setViewMode("optimized")}
-            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${
-              viewMode === "optimized"
+            className={`flex-1 py-grid-1 text-data font-medium rounded-[10px] transition-colors duration-200 cursor-pointer min-h-[44px] ${viewMode === "optimized"
                 ? "bg-primary text-background"
                 : "text-text-secondary hover:text-text-primary"
-            }`}
+              }`}
           >
             AI-Optimized
           </button>
@@ -348,11 +345,10 @@ export default function DailyForecast({
                   <span>
                     Crash risk:{" "}
                     <strong
-                      className={`font-mono ${
-                        optimization.new_crash_probability > 50
+                      className={`font-mono ${optimization.new_crash_probability > 50
                           ? "text-warning"
                           : "text-primary"
-                      }`}
+                        }`}
                     >
                       {optimization.new_crash_probability}%
                     </strong>
@@ -363,15 +359,14 @@ export default function DailyForecast({
               {optimization.optimized_events.map((event) => (
                 <div
                   key={event.id}
-                  className={`glass-card rounded-card p-grid-2 space-y-grid-1 ${
-                    event.action === "keep"
+                  className={`glass-card rounded-card p-grid-2 space-y-grid-1 ${event.action === "keep"
                       ? ""
                       : event.action === "move"
                         ? "border-warning/30"
                         : event.action === "cancel_suggest"
                           ? "border-critical/30"
                           : "border-primary/30"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -381,13 +376,12 @@ export default function DailyForecast({
                         </h4>
                         {event.action !== "keep" && (
                           <span
-                            className={`px-grid-1 py-[2px] rounded text-[12px] font-medium ${
-                              event.action === "move"
+                            className={`px-grid-1 py-[2px] rounded text-[12px] font-medium ${event.action === "move"
                                 ? "bg-warning/20 text-warning"
                                 : event.action === "cancel_suggest"
                                   ? "bg-critical/20 text-critical"
                                   : "bg-primary/20 text-primary"
-                            }`}
+                              }`}
                           >
                             {event.action === "move"
                               ? "Reschedule"

@@ -231,9 +231,29 @@ Please analyze each event and provide the structured output.`,
       format_instructions: auditParser.getFormatInstructions(),
     });
 
+    const multiplier = Number(profile.current_multiplier) || 1;
+    const adjustedEventCosts = auditResult.event_costs.map((event) => ({
+      ...event,
+      cost: Math.max(1, Math.min(10, Math.round(event.cost * multiplier))),
+    }));
+    const adjustedTotalDrain = adjustedEventCosts.reduce(
+      (sum, event) => sum + event.cost,
+      0,
+    );
+    const adjustedCrashProbability = Math.min(
+      100,
+      (adjustedTotalDrain / startingSpoons) * 75,
+    );
+    const adjustedAuditResult = {
+      ...auditResult,
+      event_costs: adjustedEventCosts,
+      total_projected_drain: adjustedTotalDrain,
+      crash_probability: Math.round(adjustedCrashProbability),
+    };
+
     // 7. Crash Risk — determine if optimization is needed
     let optimization = null;
-    const willCrash = auditResult.total_projected_drain > startingSpoons;
+    const willCrash = adjustedAuditResult.total_projected_drain > startingSpoons;
 
     if (willCrash) {
       // Calculate crash time — find the event where cumulative cost exceeds budget
@@ -241,7 +261,7 @@ Please analyze each event and provide the structured output.`,
       let crashEventId = "";
       let crashTime = "";
 
-      for (const ec of auditResult.event_costs) {
+      for (const ec of adjustedAuditResult.event_costs) {
         cumulative += ec.cost;
         if (cumulative > startingSpoons) {
           crashEventId = ec.id;
@@ -294,9 +314,9 @@ Please optimize the schedule to prevent the crash.`,
       optimization = await optimizerChain.invoke({
         condition_tags: conditionTags.join(", ") || "None specified",
         starting_spoons: startingSpoons.toString(),
-        total_drain: auditResult.total_projected_drain.toString(),
+        total_drain: adjustedAuditResult.total_projected_drain.toString(),
         crash_time: crashTime,
-        audit_result: JSON.stringify(auditResult, null, 2),
+        audit_result: JSON.stringify(adjustedAuditResult, null, 2),
         crash_event_id: crashEventId,
         format_instructions: optimizerParser.getFormatInstructions(),
       });
@@ -304,7 +324,7 @@ Please optimize the schedule to prevent the crash.`,
 
     return NextResponse.json({
       success: true,
-      audit: auditResult,
+      audit: adjustedAuditResult,
       optimization,
       crash_predicted: willCrash,
       using_demo: usingDemo,

@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function ClearFogButton() {
   const { fogLevel, spoonPercentage } = useFog();
-  const { profile, effectiveSpoons, dailyBudget } = useSpoonStore();
+  const { profile, dailyBudget } = useSpoonStore();
   const [resting, setResting] = useState(false);
   const [restored, setRestored] = useState(false);
   const supabase = createClient();
@@ -20,14 +20,43 @@ export default function ClearFogButton() {
     setResting(true);
 
     const restoreAmount = 3;
-    const newSpoons = effectiveSpoons + restoreAmount;
     const today = new Date().toISOString().split("T")[0];
+    const nowIso = new Date().toISOString();
 
-    await supabase
+    const { data: log } = await supabase
+      .from("daily_logs")
+      .select("current_spoons, starting_spoons")
+      .eq("user_id", profile.id)
+      .eq("date", today)
+      .single();
+
+    const current = log?.current_spoons ?? log?.starting_spoons ?? dailyBudget.starting_spoons;
+    const maxSpoons = 20;
+    const newSpoons = Math.min(maxSpoons, current + restoreAmount);
+
+    const { error } = await supabase
       .from("daily_logs")
       .update({ current_spoons: newSpoons })
       .eq("user_id", profile.id)
       .eq("date", today);
+    if (error) {
+      await supabase
+        .from("daily_logs")
+        .update({ current_spoons: newSpoons })
+        .eq("user_id", profile.id)
+        .eq("date", today);
+    }
+
+    await supabase
+      .from("manual_events")
+      .insert({
+        user_id: profile.id,
+        title: "I took a rest",
+        spoon_cost: restoreAmount,
+        category: "rest",
+        start_time: nowIso,
+        notes: "Logged from rest button",
+      });
 
     useSpoonStore.setState({ effectiveSpoons: newSpoons });
 
@@ -54,7 +83,7 @@ export default function ClearFogButton() {
             exit={{ opacity: 0 }}
             className="absolute bottom-full right-0 mb-grid-1 bg-primary text-background px-grid-2 py-grid-1 rounded-card text-data font-medium whitespace-nowrap shadow-lg"
           >
-            +3 spoons restored — fog clearing...
+            +3 spoons — rest logged
           </motion.div>
         )}
       </AnimatePresence>
@@ -63,6 +92,7 @@ export default function ClearFogButton() {
       <motion.button
         onClick={handleRest}
         disabled={resting}
+        title="Log a rest break — adds 3 spoons back (up to your starting budget). Shows in your budget breakdown."
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         className={`flex items-center gap-grid-1 px-grid-3 py-grid-2 rounded-pill shadow-xl font-medium text-data transition-colors duration-200 cursor-pointer min-h-[44px] ${buttonColor} text-text-primary disabled:opacity-50`}
@@ -84,7 +114,7 @@ export default function ClearFogButton() {
           "Resting..."
         ) : (
           <>
-            Clear My Fog
+            I took a rest (+3)
             <span className="text-[12px] opacity-75 font-mono">
               ({Math.round(spoonPercentage)}%)
             </span>

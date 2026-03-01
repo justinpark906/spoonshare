@@ -93,8 +93,88 @@ export default function HomePage() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-text-secondary text-body">Syncing profile...</div>
+      <div className="min-h-screen bg-background px-grid-3 py-[48px] md:px-grid-5">
+        <div className="max-w-4xl mx-auto space-y-grid-4">
+          <header className="flex items-center justify-between">
+            <h1 className="text-h1 text-text-primary">SpoonShare</h1>
+            <button
+              onClick={() => router.push("/login")}
+              className="px-grid-2 py-grid-1 rounded-pill bg-primary hover:bg-primary/80 text-background text-data font-medium transition-colors duration-200 cursor-pointer"
+            >
+              Log In
+            </button>
+          </header>
+
+          <section className="glass-card rounded-card p-grid-4 space-y-grid-2">
+            <p className="text-data uppercase tracking-wide text-text-secondary">
+              Energy-aware care, built for real life
+            </p>
+            <h2 className="text-h1 text-text-primary">
+              Manage your day with Spoon Theory + AI support
+            </h2>
+            <p className="text-body text-text-secondary max-w-2xl">
+              SpoonShare helps people with rare and chronic conditions track
+              daily energy, understand what changes their budget, and share live
+              status with caregivers.
+            </p>
+            <div className="flex flex-wrap gap-grid-2 pt-grid-1">
+              <button
+                onClick={() => router.push("/login")}
+                className="px-grid-3 py-[10px] rounded-pill bg-primary hover:bg-primary/80 text-background font-medium transition-colors duration-200 cursor-pointer"
+              >
+                Get Started
+              </button>
+              <button
+                onClick={() => router.push("/login")}
+                className="px-grid-3 py-[10px] rounded-pill border border-[rgba(255,255,255,0.15)] text-text-primary hover:bg-white/5 font-medium transition-colors duration-200 cursor-pointer"
+              >
+                Sign In
+              </button>
+            </div>
+          </section>
+
+          <section className="grid md:grid-cols-3 gap-grid-2">
+            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
+              <h3 className="text-body font-semibold text-text-primary">
+                Daily spoon budget
+              </h3>
+              <p className="text-data text-text-secondary">
+                Morning check-in combines symptoms and environment into a daily
+                starting point.
+              </p>
+            </article>
+            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
+              <h3 className="text-body font-semibold text-text-primary">
+                Transparent calculations
+              </h3>
+              <p className="text-data text-text-secondary">
+                Every activity, rest, and caregiver assist is shown step-by-step
+                so your current value always makes sense.
+              </p>
+            </article>
+            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
+              <h3 className="text-body font-semibold text-text-primary">
+                Caregiver collaboration
+              </h3>
+              <p className="text-data text-text-secondary">
+                Share a secure status link so trusted supporters can help at the
+                right moment.
+              </p>
+            </article>
+          </section>
+
+          <section className="glass-card rounded-card p-grid-3 space-y-grid-1">
+            <h3 className="text-body font-semibold text-text-primary">
+              About SpoonShare
+            </h3>
+            <p className="text-data text-text-secondary">
+              We built SpoonShare to reduce guesswork and improve communication
+              around fluctuating energy. The goal is simple: make pacing easier,
+              make support clearer, and help users advocate for themselves with
+              confidence.
+            </p>
+          </section>
+        </div>
       </div>
     );
   }
@@ -153,9 +233,7 @@ export default function HomePage() {
 
               <BatteryMeter
                 current={effectiveSpoons}
-                max={Math.round(
-                  profile.baseline_spoons / profile.current_multiplier,
-                )}
+                max={20}
               />
 
               <div className="pt-grid-1">
@@ -268,11 +346,10 @@ export default function HomePage() {
                   </div>
                   <div>
                     <p
-                      className={`text-[24px] font-semibold font-mono ${
-                        weatherInfo.pressure_delta < -5
-                          ? "text-critical"
-                          : "text-text-primary"
-                      }`}
+                      className={`text-[24px] font-semibold font-mono ${weatherInfo.pressure_delta < -5
+                        ? "text-critical"
+                        : "text-text-primary"
+                        }`}
                     >
                       {weatherInfo.pressure_delta > 0 ? "+" : ""}
                       {weatherInfo.pressure_delta.toFixed(1)}

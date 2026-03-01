@@ -29,6 +29,8 @@ export interface HrvDeductionResult {
   reason: string | null;
 }
 
+const MAX_DAILY_SPOONS = 20;
+
 /**
  * Calculate spoon deduction based on HRV deviation from baseline.
  * - 20%+ below baseline → -3 spoons (significant autonomic stress)
@@ -65,10 +67,8 @@ export function calculateMorningBudget(
   input: BudgetInput,
   weatherReasons: string[],
 ): BudgetResult {
-  // Effective baseline after multiplier
-  const effectiveBaseline = Math.round(
-    input.baseline_spoons / input.current_multiplier,
-  );
+  // Fixed daily max capacity
+  const effectiveBaseline = MAX_DAILY_SPOONS;
 
   // Sleep factor: scales the baseline
   const sleepFactor = input.sleep_score / 10;

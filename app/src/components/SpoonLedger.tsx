@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSpoonStore } from "@/store/useSpoonStore";
 
 export interface ManualEvent {
   id: string;
@@ -15,6 +16,7 @@ export interface ManualEvent {
 }
 
 export default function SpoonLedger() {
+  const syncWithSupabase = useSpoonStore((s) => s.syncWithSupabase);
   const [events, setEvents] = useState<ManualEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -65,6 +67,7 @@ export default function SpoonLedger() {
         setSpoonCost(5);
         setNotes("");
         await fetchEvents();
+        await syncWithSupabase();
       }
     } finally {
       setSubmitting(false);
@@ -75,6 +78,7 @@ export default function SpoonLedger() {
     try {
       await fetch(`/api/manual-events/${id}`, { method: "DELETE" });
       await fetchEvents();
+      await syncWithSupabase();
     } catch {
       // ignore
     }
@@ -195,6 +199,9 @@ export default function SpoonLedger() {
                   placeholder="Notes (optional)"
                   className="w-full rounded-card border border-[rgba(255,255,255,0.1)] bg-background px-grid-2 py-1.5 text-text-secondary text-data placeholder:text-text-secondary/60 focus:border-primary outline-none"
                 />
+                <p className="text-[12px] text-text-secondary/80">
+                  Activity spoon changes are adjusted by your pacing ratio.
+                </p>
               </div>
 
               {/* Today's logged events */}
@@ -210,29 +217,34 @@ export default function SpoonLedger() {
                   </p>
                 ) : (
                   <ul className="space-y-grid-1">
-                    {events.map((ev) => (
-                      <li
-                        key={ev.id}
-                        className="flex items-center justify-between gap-grid-2 rounded-card border border-[rgba(255,255,255,0.08)] bg-background/50 px-grid-2 py-grid-1.5"
-                      >
-                        <div>
-                          <span className="text-data text-text-primary font-medium">
-                            {ev.title}
-                          </span>
-                          <span className="text-[12px] text-text-secondary ml-2">
-                            {formatTime(ev.start_time)} · {categoryLabel[ev.category] ?? ev.category} · −{ev.spoon_cost} spoons
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(ev.id)}
-                          className="text-[12px] text-critical hover:underline"
-                          aria-label={`Delete ${ev.title}`}
+                    {events.map((ev) => {
+                      const isRestorative = ev.category === "rest";
+                      const sign = isRestorative ? "+" : "−";
+
+                      return (
+                        <li
+                          key={ev.id}
+                          className="flex items-center justify-between gap-grid-2 rounded-card border border-[rgba(255,255,255,0.08)] bg-background/50 px-grid-2 py-grid-1.5"
                         >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
+                          <div>
+                            <span className="text-data text-text-primary font-medium">
+                              {ev.title}
+                            </span>
+                            <span className={`text-[12px] ml-2 ${isRestorative ? "text-primary" : "text-text-secondary"}`}>
+                              {formatTime(ev.start_time)} · {categoryLabel[ev.category] ?? ev.category} · {sign}{ev.spoon_cost} spoons
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(ev.id)}
+                            className="text-[12px] text-critical hover:underline"
+                            aria-label={`Delete ${ev.title}`}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

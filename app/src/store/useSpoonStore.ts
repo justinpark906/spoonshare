@@ -135,9 +135,7 @@ export const useSpoonStore = create<SpoonState>()(
         set({
           profile,
           isAuthenticated: true,
-          effectiveSpoons: Math.round(
-            profile.baseline_spoons / profile.current_multiplier,
-          ),
+          effectiveSpoons: 20,
         }),
 
       setLoading: (loading) => set({ isLoading: loading }),
@@ -237,9 +235,7 @@ export const useSpoonStore = create<SpoonState>()(
             profile: spoonProfile,
             isAuthenticated: true,
             isLoading: false,
-            effectiveSpoons: Math.round(
-              spoonProfile.baseline_spoons / spoonProfile.current_multiplier,
-            ),
+            effectiveSpoons: 20,
           };
 
           if (dailyLog) {
@@ -259,7 +255,10 @@ export const useSpoonStore = create<SpoonState>()(
               condition: "",
             };
             updates.hasCheckedInToday = true;
-            updates.effectiveSpoons = dailyLog.starting_spoons;
+            updates.effectiveSpoons = Math.min(
+              20,
+              dailyLog.current_spoons ?? dailyLog.starting_spoons,
+            );
           } else {
             updates.hasCheckedInToday = false;
             updates.dailyBudget = null;

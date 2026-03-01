@@ -157,12 +157,13 @@ export async function POST(request: Request) {
       ],
     );
 
-    // 10. Save to daily_logs (upsert for today)
+    // 10. Save to daily_logs (upsert for today); set current_spoons so energy display and caregiver view stay in sync
     const { error: logError } = await supabase.from("daily_logs").upsert(
       {
         user_id: user.id,
         date: today,
         starting_spoons: budgetResult.starting_spoons,
+        current_spoons: budgetResult.starting_spoons,
         baseline_used: budgetResult.effective_baseline,
         sleep_score: effectiveSleep,
         pain_score,

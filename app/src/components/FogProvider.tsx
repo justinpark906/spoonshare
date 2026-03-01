@@ -88,13 +88,9 @@ function getNavFilterStyle(level: FogLevel): React.CSSProperties {
 }
 
 export default function FogProvider({ children }: { children: ReactNode }) {
-  const { effectiveSpoons, profile, dailyBudget } = useSpoonStore();
+  const { effectiveSpoons } = useSpoonStore();
 
-  const maxSpoons = useMemo(() => {
-    if (dailyBudget) return dailyBudget.effective_baseline;
-    if (profile) return Math.round(profile.baseline_spoons / profile.current_multiplier);
-    return 20;
-  }, [dailyBudget, profile]);
+  const maxSpoons = 20;
 
   const spoonPercentage = useMemo(
     () => (maxSpoons > 0 ? (effectiveSpoons / maxSpoons) * 100 : 100),
@@ -133,23 +129,29 @@ export default function FogProvider({ children }: { children: ReactNode }) {
     [fogLevel, spoonPercentage, filterStyle, navFilterStyle, withCognitiveLag, motionMultiplier]
   );
 
+  // Smoke/mist overlay opacity by level — no blur on content, just atmospheric background
+  const mistOpacity = useMemo(() => {
+    switch (fogLevel) {
+      case "healthy": return 0;
+      case "warning": return 0.25;
+      case "critical": return 0.5;
+      case "emergency": return 0.75;
+    }
+  }, [fogLevel]);
+
   return (
     <FogContext.Provider value={value}>
-      {/* Fog indicator overlay — subtle atmospheric effect */}
-      {fogLevel !== "healthy" && (
-        <div
-          className="fixed inset-0 pointer-events-none z-50"
-          style={{
-            background:
-              fogLevel === "emergency"
-                ? "radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.3) 100%)"
-                : fogLevel === "critical"
-                  ? "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.15) 100%)"
-                  : "none",
-            transition: "background 1s ease-in-out",
-          }}
-        />
-      )}
+      {/* Smoke/misty background layer — gets denser as energy drops; content stays sharp */}
+      <div
+        className="fixed inset-0 pointer-events-none z-40"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 140% 80% at 50% 10%, rgba(255,255,255,0.12) 0%, transparent 50%), radial-gradient(ellipse 100% 120% at 80% 70%, rgba(240,248,255,0.08) 0%, transparent 45%), radial-gradient(ellipse 100% 100% at 20% 50%, rgba(230,240,250,0.1) 0%, transparent 50%)",
+          opacity: mistOpacity,
+          transition: "opacity 1s ease-in-out",
+        }}
+      />
       {children}
     </FogContext.Provider>
   );

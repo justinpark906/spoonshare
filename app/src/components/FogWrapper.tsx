@@ -1,15 +1,13 @@
 "use client";
 
 import { type ReactNode } from "react";
-import FogProvider, { useFog } from "./FogProvider";
+import FogProvider from "./FogProvider";
 import ClearFogButton from "./ClearFogButton";
 
 function FogContent({ children }: { children: ReactNode }) {
-  const { filterStyle } = useFog();
-
   return (
     <>
-      <div style={filterStyle}>{children}</div>
+      {children}
       <ClearFogButton />
     </>
   );

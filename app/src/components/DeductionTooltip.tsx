@@ -1,18 +1,124 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DailyBudget, WeatherInfo } from "@/store/useSpoonStore";
+import { DailyBudget, WeatherInfo, useSpoonStore } from "@/store/useSpoonStore";
+import { createClient } from "@/lib/supabase/client";
+
+interface ManualEventRow {
+  title: string;
+  spoon_cost: number;
+  category: string;
+  start_time: string;
+}
+
+interface ClaimedTaskRow {
+  event_title: string;
+  spoon_cost: number;
+  caregiver_name: string;
+  claimed_at?: string;
+}
 
 interface Props {
   budget: DailyBudget;
   weather: WeatherInfo | null;
 }
 
+interface ActivityRow {
+  id: string;
+  at: string;
+  label: string;
+  delta: number;
+}
+
+function formatActivityTime(iso?: string) {
+  if (!iso) return "";
+
+  try {
+    return new Date(iso).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export default function DeductionTooltip({ budget, weather }: Props) {
+  const maxSpoons = 20;
   const [isOpen, setIsOpen] = useState(false);
+  const [manualEvents, setManualEvents] = useState<ManualEventRow[]>([]);
+  const [claimedTasks, setClaimedTasks] = useState<ClaimedTaskRow[]>([]);
+  const [currentFromLog, setCurrentFromLog] = useState<number | null>(null);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+  const effectiveSpoons = useSpoonStore((s) => s.effectiveSpoons);
+  const profile = useSpoonStore((s) => s.profile);
 
   const hasDeductions = budget.deduction_reasons.length > 0;
+  const today = new Date().toISOString().split("T")[0];
+  const todayStart = `${today}T00:00:00.000Z`;
+  const todayEnd = `${today}T23:59:59.999Z`;
+
+  useEffect(() => {
+    if (!isOpen || !profile?.id) return;
+    setLoadingActivity(true);
+    const supabase = createClient();
+    Promise.all([
+      supabase
+        .from("manual_events")
+        .select("title, spoon_cost, category, start_time")
+        .eq("user_id", profile.id)
+        .gte("start_time", todayStart)
+        .lte("start_time", todayEnd)
+        .order("start_time", { ascending: true }),
+      supabase
+        .from("daily_logs")
+        .select("claimed_tasks, current_spoons")
+        .eq("user_id", profile.id)
+        .eq("date", today)
+        .single(),
+    ])
+      .then(([eventsRes, claimsRes]) => {
+        setManualEvents(eventsRes.data ?? []);
+        const claims = (claimsRes.data?.claimed_tasks ?? []) as ClaimedTaskRow[];
+        setClaimedTasks(claims);
+        const currentSpoons = claimsRes.data?.current_spoons;
+        setCurrentFromLog(typeof currentSpoons === "number" ? currentSpoons : null);
+      })
+      .finally(() => setLoadingActivity(false));
+  }, [isOpen, profile?.id, today]);
+
+  const morningAdjustment = maxSpoons - budget.starting_spoons;
+
+  const activityRows: ActivityRow[] = [
+    ...manualEvents.map((event, index) => ({
+      id: `manual-${index}`,
+      at: event.start_time,
+      label: event.title,
+      delta:
+        event.category === "rest"
+          ? Number(event.spoon_cost ?? 0)
+          : -Number(event.spoon_cost ?? 0),
+    })),
+    ...claimedTasks.map((claim, index) => ({
+      id: `claim-${index}`,
+      at: claim.claimed_at ?? "",
+      label: `${claim.caregiver_name} claimed “${claim.event_title}”`,
+      delta: Number(claim.spoon_cost ?? 0),
+    })),
+  ].sort((a, b) => {
+    const aTs = new Date(a.at).getTime();
+    const bTs = new Date(b.at).getTime();
+    const safeA = Number.isFinite(aTs) ? aTs : Number.MAX_SAFE_INTEGER;
+    const safeB = Number.isFinite(bTs) ? bTs : Number.MAX_SAFE_INTEGER;
+    return safeA - safeB;
+  });
+
+  const calculatedCurrent = activityRows.reduce(
+    (running, row) => Math.min(maxSpoons, Math.max(0, running + row.delta)),
+    budget.starting_spoons,
+  );
+  const finalCurrent = currentFromLog ?? calculatedCurrent;
 
   return (
     <div className="relative">
@@ -21,7 +127,9 @@ export default function DeductionTooltip({ budget, weather }: Props) {
         aria-expanded={isOpen}
         className="text-data text-text-secondary hover:text-primary transition-colors duration-200 flex items-center gap-grid-1 cursor-pointer min-h-[44px]"
       >
-        <span>Why is my budget {budget.starting_spoons}?</span>
+        <span>
+          Why is my budget {currentFromLog ?? effectiveSpoons}?
+        </span>
         <svg
           className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
@@ -95,6 +203,77 @@ export default function DeductionTooltip({ budget, weather }: Props) {
                 <span className="text-text-primary font-semibold text-right font-mono border-t border-[rgba(255,255,255,0.1)] pt-grid-1">
                   {budget.starting_spoons} spoons
                 </span>
+              </div>
+            </div>
+
+            {/* Current spoons calculation: starting − activities + caregiver claims */}
+            <div className="space-y-grid-1 border-t border-[rgba(255,255,255,0.1)] pt-grid-2">
+              <h4 className="text-[12px] font-semibold text-text-secondary uppercase tracking-wide">
+                How you got to current spoons
+              </h4>
+              <div className="text-data space-y-grid-1">
+                <div className="flex justify-between gap-grid-2">
+                  <span className="text-text-secondary">Max daily spoons</span>
+                  <span className="font-mono text-text-primary">
+                    {maxSpoons}
+                  </span>
+                </div>
+                {morningAdjustment > 0 && (
+                  <div className="flex justify-between gap-grid-2 text-warning">
+                    <span className="truncate">− Morning adjustments</span>
+                    <span className="font-mono shrink-0">−{morningAdjustment}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-grid-2">
+                  <span className="text-text-secondary">= Starting today</span>
+                  <span className="font-mono text-text-primary">
+                    {budget.starting_spoons}
+                  </span>
+                </div>
+                {loadingActivity ? (
+                  <p className="text-text-secondary text-[12px]">
+                    Loading activities…
+                  </p>
+                ) : (
+                  <>
+                    {activityRows.map((row) => {
+                      const isGain = row.delta >= 0;
+                      const sign = isGain ? "+" : "−";
+                      const amount = Math.abs(row.delta);
+                      const timeLabel = formatActivityTime(row.at);
+
+                      return (
+                        <div
+                          key={row.id}
+                          className={`flex justify-between gap-grid-2 ${isGain ? "text-primary" : "text-critical"}`}
+                        >
+                          <span className="truncate">
+                            {timeLabel ? `${timeLabel} · ` : ""}{sign} {row.label}
+                          </span>
+                          <span className="font-mono shrink-0">
+                            {sign}{amount}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {activityRows.length > 0 && (
+                      <div className="flex justify-between gap-grid-2 font-semibold border-t border-[rgba(255,255,255,0.08)] pt-grid-1 mt-grid-1">
+                        <span className="text-text-primary">
+                          = Current spoons
+                        </span>
+                        <span className="font-mono text-text-primary">
+                          {finalCurrent}
+                        </span>
+                      </div>
+                    )}
+                    {activityRows.length === 0 && (
+                      <p className="text-text-secondary text-[12px]">
+                        No activities or caregiver claims yet today — current
+                        = starting ({budget.starting_spoons}).
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 

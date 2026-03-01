@@ -98,12 +98,20 @@ export async function POST(request: Request) {
     const validCategories = ["rest", "light", "moderate", "heavy"];
     const cat = validCategories.includes(category) ? category : "moderate";
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("current_multiplier")
+      .eq("id", user.id)
+      .single();
+    const multiplier = Number(profile?.current_multiplier) || 1;
+    const adjustedCost = Math.max(1, Math.min(10, Math.round(cost * multiplier)));
+
     const { data, error } = await supabase
       .from("manual_events")
       .insert({
         user_id: user.id,
         title: String(title).trim(),
-        spoon_cost: cost,
+        spoon_cost: adjustedCost,
         category: cat,
         start_time: new Date(start_time).toISOString(),
         end_time: end_time ? new Date(end_time).toISOString() : null,
@@ -118,6 +126,29 @@ export async function POST(request: Request) {
         { error: "Failed to create event" },
         { status: 500 }
       );
+    }
+
+    // Apply manual event impact to today's daily_log so energy display and caregiver view stay in sync
+    const today = new Date(start_time).toISOString().split("T")[0];
+    const { data: dailyLog } = await supabase
+      .from("daily_logs")
+      .select("id, starting_spoons, current_spoons")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .single();
+
+    if (dailyLog) {
+      const current = dailyLog.current_spoons ?? dailyLog.starting_spoons ?? 0;
+      const delta = cat === "rest" ? adjustedCost : -adjustedCost;
+      const maxSpoons = 20;
+      const newSpoons =
+        delta >= 0
+          ? Math.min(maxSpoons, current + delta)
+          : Math.max(0, current + delta);
+      await supabase
+        .from("daily_logs")
+        .update({ current_spoons: newSpoons })
+        .eq("id", dailyLog.id);
     }
 
     return NextResponse.json({ success: true, event: data });
