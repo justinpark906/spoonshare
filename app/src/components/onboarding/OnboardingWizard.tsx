@@ -81,15 +81,15 @@ export default function OnboardingWizard() {
     <div className="w-full max-w-lg mx-auto space-y-8">
       {/* Progress Bar */}
       <div className="space-y-2">
-        <div className="flex justify-between text-sm text-slate-400">
+        <div className="flex justify-between text-sm text-text-secondary">
           <span>Clinical Profile</span>
           <span>
             {step + 1} of {totalSteps}
           </span>
         </div>
-        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-2 bg-primary-pale/40 rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-violet-500 rounded-full"
+            className="h-full bg-primary rounded-full"
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.3 }}
           />
@@ -107,7 +107,7 @@ export default function OnboardingWizard() {
             animate="center"
             exit="exit"
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="bg-slate-900 border border-slate-800 rounded-2xl p-8"
+            className="glass-card bg-surface rounded-2xl p-8"
           >
             <PhenotypeSlider
               phenotype={currentPhenotype}
@@ -121,7 +121,7 @@ export default function OnboardingWizard() {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 text-sm">
+        <div className="bg-critical/10 border border-critical/30 text-critical rounded-lg p-3 text-sm">
           {error}
         </div>
       )}
@@ -131,7 +131,7 @@ export default function OnboardingWizard() {
         <button
           onClick={goPrev}
           disabled={step === 0}
-          className="px-6 py-2.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-light text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
         >
           Back
         </button>
@@ -139,7 +139,7 @@ export default function OnboardingWizard() {
         {step < totalSteps - 1 ? (
           <button
             onClick={goNext}
-            className="px-6 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium transition"
+            className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-light text-white font-medium transition"
           >
             Next
           </button>
@@ -147,7 +147,7 @@ export default function OnboardingWizard() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition"
+            className="px-6 py-2.5 rounded-lg bg-primary hover:bg-primary-light disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium transition"
           >
             {loading ? "Analyzing..." : "Generate My Spoon Profile ✨"}
           </button>
