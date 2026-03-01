@@ -56,7 +56,7 @@ interface ScheduleEvent {
   title: string;
   cost: number;
   start: string;
-  priority: string;
+  priority: "essential" | "important" | "flexible";
 }
 
 interface ActivityRow {
@@ -82,13 +82,16 @@ export default function CaregiverStatusPage() {
   const [manualEvents, setManualEvents] = useState<ManualEventRow[]>([]);
   const [latestReport, setLatestReport] = useState<ReportRow | null>(null);
 
-  // Demo schedule events (in production, fetched from audit results)
-  const [scheduleEvents] = useState<ScheduleEvent[]>([
+  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([
     { id: "demo-2", title: "Physical Therapy", cost: 6, start: "10:00 AM", priority: "essential" },
     { id: "demo-3", title: "Grocery Shopping", cost: 5, start: "12:30 PM", priority: "flexible" },
     { id: "demo-4", title: "Team Meeting", cost: 4, start: "2:00 PM", priority: "important" },
     { id: "demo-6", title: "Dinner Cooking", cost: 4, start: "6:00 PM", priority: "flexible" },
   ]);
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskTime, setNewTaskTime] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<"essential" | "important" | "flexible">("important");
+  const [newTaskSpoons, setNewTaskSpoons] = useState(3);
 
   useEffect(() => {
     loadData();
@@ -209,6 +212,41 @@ export default function CaregiverStatusPage() {
     } finally {
       setClaiming(null);
     }
+  }
+
+  function formatTaskTime(time24h: string) {
+    if (!time24h) return "";
+
+    const [rawHour, rawMinute] = time24h.split(":");
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
+
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return time24h;
+
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    const minuteStr = minute.toString().padStart(2, "0");
+
+    return `${hour12}:${minuteStr} ${suffix}`;
+  }
+
+  function addCustomTask() {
+    const title = newTaskName.trim();
+    if (!title || !newTaskTime) return;
+
+    const createdTask: ScheduleEvent = {
+      id: `custom-${Date.now()}`,
+      title,
+      cost: Math.min(10, Math.max(1, Math.round(newTaskSpoons))),
+      start: formatTaskTime(newTaskTime),
+      priority: newTaskPriority,
+    };
+
+    setScheduleEvents((prev) => [...prev, createdTask]);
+    setNewTaskName("");
+    setNewTaskTime("");
+    setNewTaskPriority("important");
+    setNewTaskSpoons(3);
   }
 
   if (error) {
@@ -371,6 +409,62 @@ export default function CaregiverStatusPage() {
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
                 Patient Schedule — Claim to Help
               </h3>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                  Add task
+                </p>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={newTaskName}
+                    onChange={(e) => setNewTaskName(e.target.value)}
+                    placeholder="Task name"
+                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-violet-500 outline-none transition"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="time"
+                      value={newTaskTime}
+                      onChange={(e) => setNewTaskTime(e.target.value)}
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                    />
+                    <select
+                      value={newTaskPriority}
+                      onChange={(e) =>
+                        setNewTaskPriority(
+                          e.target.value as "essential" | "important" | "flexible",
+                        )
+                      }
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                    >
+                      <option value="essential">Essential</option>
+                      <option value="important">Important</option>
+                      <option value="flexible">Flexible</option>
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={newTaskSpoons}
+                      onChange={(e) =>
+                        setNewTaskSpoons(
+                          Math.min(10, Math.max(1, Number(e.target.value) || 1)),
+                        )
+                      }
+                      className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:border-violet-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={addCustomTask}
+                  disabled={!newTaskName.trim() || !newTaskTime}
+                  className="w-full px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-medium transition"
+                >
+                  Add Claimable Task
+                </button>
+              </div>
+
               {scheduleEvents.map((event) => {
                 const isClaimed = alreadyClaimed.includes(event.id);
 
