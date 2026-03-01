@@ -7,6 +7,7 @@ import MorningCheckIn from "@/components/MorningCheckIn";
 import BatteryMeter from "@/components/BatteryMeter";
 import DeductionTooltip from "@/components/DeductionTooltip";
 import DailyForecast from "@/components/DailyForecast";
+import AIInsightCard from "@/components/AIInsightCard";
 import CaregiverShare from "@/components/CaregiverShare";
 import SpoonLedger from "@/components/SpoonLedger";
 import CalendarView from "@/components/CalendarView";
@@ -185,6 +186,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-grid-3">
             {/* Left Column — main content */}
             <div className="lg:col-span-2 space-y-grid-3">
+              {/* AI Insight — minimalist top card */}
+              <AIInsightCard />
+
               {/* Battery Meter */}
               <section className="glass-card rounded-card p-grid-4 space-y-grid-3">
                 <div className="text-center">
@@ -316,7 +320,7 @@ export default function DashboardPage() {
                 )}
               </section>
 
-              {/* Schedule Audit / Forecast */}
+              {/* Full Schedule Forecast (on demand) */}
               {scheduleAudit ? (
                 <DailyForecast
                   audit={scheduleAudit}
@@ -326,44 +330,17 @@ export default function DashboardPage() {
                   usingDemo={usingDemoCalendar}
                 />
               ) : (
-                <section className="glass-card rounded-card p-grid-3 text-center space-y-grid-2">
-                  <div className="flex items-center justify-center gap-grid-1">
-                    <svg
-                      className="w-6 h-6 text-primary"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                      <line x1="16" y1="2" x2="16" y2="6" />
-                      <line x1="8" y1="2" x2="8" y2="6" />
-                      <line x1="3" y1="10" x2="21" y2="10" />
-                    </svg>
-                    <h3 className="text-h2 text-text-primary">
-                      Schedule Energy Forecast
-                    </h3>
-                  </div>
-                  <p className="text-data text-text-secondary">
-                    Let AI analyze your calendar and predict when you might
-                    crash today.
-                  </p>
+                <div className="text-center">
                   <button
                     onClick={handleRunScheduleAudit}
                     disabled={isAuditLoading}
-                    className="px-grid-3 py-[10px] rounded-pill bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed text-background font-medium transition-colors duration-200 cursor-pointer"
+                    className="text-[12px] text-primary hover:text-primary-light cursor-pointer disabled:opacity-50"
                   >
                     {isAuditLoading
-                      ? "Analyzing Schedule..."
-                      : "Analyze My Schedule"}
+                      ? "Analyzing schedule..."
+                      : "See full schedule forecast"}
                   </button>
-                  <p className="text-[12px] text-text-secondary/60">
-                    Uses Google Calendar if connected, or demo events for
-                    preview
-                  </p>
-                </section>
+                </div>
               )}
 
               {/* Condition + Weather row on desktop */}
@@ -470,18 +447,6 @@ export default function DashboardPage() {
                     </span>
                   ))}
                 </div>
-              )}
-
-              {/* AI Insight */}
-              {profile.educational_note && (
-                <section className="glass-card rounded-card p-grid-3">
-                  <p className="text-data text-text-secondary mb-grid-1">
-                    AI Insight
-                  </p>
-                  <p className="text-body text-text-primary/90">
-                    {profile.educational_note}
-                  </p>
-                </section>
               )}
 
               {/* Spoon Ledger + Caregiver side by side on desktop */}
