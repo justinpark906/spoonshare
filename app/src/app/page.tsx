@@ -1,447 +1,165 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect } from "react";
 import { useSpoonStore } from "@/store/useSpoonStore";
 import { useRouter } from "next/navigation";
-import MorningCheckIn from "@/components/MorningCheckIn";
-import BatteryMeter from "@/components/BatteryMeter";
-import DeductionTooltip from "@/components/DeductionTooltip";
-import DailyForecast from "@/components/DailyForecast";
-import CaregiverShare from "@/components/CaregiverShare";
-import SpoonLedger from "@/components/SpoonLedger";
+import Image from "next/image";
 
-export default function HomePage() {
-  const {
-    profile,
-    effectiveSpoons,
-    isLoading,
-    dailyBudget,
-    weatherInfo,
-    hasCheckedInToday,
-    scheduleAudit,
-    scheduleOptimization,
-    crashPrediction,
-    isAuditLoading,
-    usingDemoCalendar,
-    syncWithSupabase,
-    setScheduleAudit,
-    setAuditLoading,
-  } = useSpoonStore();
+export default function LandingPage() {
+  const { isLoading, syncWithSupabase } = useSpoonStore();
   const router = useRouter();
-  const [onboardingDiseaseMessage, setOnboardingDiseaseMessage] = useState<
-    string | null
-  >(null);
 
   useEffect(() => {
     syncWithSupabase();
   }, [syncWithSupabase]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const msg = sessionStorage.getItem("spoonshare_onboarding_disease_message");
-    if (msg) {
-      setOnboardingDiseaseMessage(msg);
-      sessionStorage.removeItem("spoonshare_onboarding_disease_message");
-    }
-  }, []);
-
-  const handleCheckInComplete = useCallback(() => {
-    syncWithSupabase();
-  }, [syncWithSupabase]);
-
-  const handleRunScheduleAudit = useCallback(async () => {
-    if (!effectiveSpoons) return;
-
-    setAuditLoading(true);
-    try {
-      const res = await fetch("/api/schedule-audit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ starting_spoons: effectiveSpoons }),
-      });
-
-      if (!res.ok) {
-        console.error("Schedule audit failed");
-        setAuditLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.audit) {
-        setScheduleAudit(
-          data.audit,
-          data.optimization || null,
-          data.crash_predicted,
-          data.using_demo,
-        );
-      } else {
-        setAuditLoading(false);
-      }
-    } catch (err) {
-      console.error("Schedule audit error:", err);
-      setAuditLoading(false);
-    }
-  }, [effectiveSpoons, setScheduleAudit, setAuditLoading]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-text-secondary text-body">
-          Loading your spoon budget...
-        </div>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="text-text-secondary text-body">Loading...</div>
       </div>
     );
   }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-background px-grid-3 py-[48px] md:px-grid-5">
-        <div className="max-w-4xl mx-auto space-y-grid-4">
-          <section className="glass-card rounded-card p-grid-4 space-y-grid-2">
-            <p className="text-data uppercase tracking-wide text-text-secondary">
-              Energy-aware care, built for real life
-            </p>
-            <h2 className="text-h1 text-text-primary">
-              Manage your day with Spoon Theory + AI support
-            </h2>
-            <p className="text-body text-text-secondary max-w-2xl">
-              SpoonShare helps people with rare and chronic conditions track
-              daily energy, understand what changes their budget, and share live
-              status with caregivers.
-            </p>
-            <div className="flex flex-wrap gap-grid-2 pt-grid-1">
-              <button
-                onClick={() => router.push("/login")}
-                className="px-grid-3 py-[10px] rounded-pill bg-primary hover:bg-primary/80 text-background font-medium transition-colors duration-200 cursor-pointer"
-              >
-                Get Started
-              </button>
-              <button
-                onClick={() => router.push("/login")}
-                className="px-grid-3 py-[10px] rounded-pill border border-primary/40 text-text-primary hover:bg-primary-pale/30 font-medium transition-colors duration-200 cursor-pointer"
-              >
-                Sign In
-              </button>
-            </div>
-          </section>
-
-          <section className="grid md:grid-cols-3 gap-grid-2">
-            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
-              <h3 className="text-body font-semibold text-text-primary">
-                Daily spoon budget
-              </h3>
-              <p className="text-data text-text-secondary">
-                Morning check-in combines symptoms and environment into a daily
-                starting point.
-              </p>
-            </article>
-            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
-              <h3 className="text-body font-semibold text-text-primary">
-                Transparent calculations
-              </h3>
-              <p className="text-data text-text-secondary">
-                Every activity, rest, and caregiver assist is shown step-by-step
-                so your current value always makes sense.
-              </p>
-            </article>
-            <article className="glass-card rounded-card p-grid-3 space-y-grid-1">
-              <h3 className="text-body font-semibold text-text-primary">
-                Caregiver collaboration
-              </h3>
-              <p className="text-data text-text-secondary">
-                Share a secure status link so trusted supporters can help at the
-                right moment.
-              </p>
-            </article>
-          </section>
-
-          <section className="glass-card rounded-card p-grid-3 space-y-grid-1">
-            <h3 className="text-body font-semibold text-text-primary">
-              About SpoonShare
-            </h3>
-            <p className="text-data text-text-secondary">
-              We built SpoonShare to reduce guesswork and improve communication
-              around fluctuating energy. The goal is simple: make pacing easier,
-              make support clearer, and help users advocate for themselves with
-              confidence.
-            </p>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  const hasCompletedOnboarding =
-    profile.symptom_data && Object.keys(profile.symptom_data).length > 0;
 
   return (
-    <div className="min-h-screen bg-background px-grid-3 py-[48px] md:px-grid-5">
-      <div className="max-w-2xl mx-auto space-y-grid-4">
-        {/* Onboarding CTA */}
-        {!hasCompletedOnboarding && (
-          <div className="glass-card p-grid-3 text-center border-primary/30">
-            <p className="text-primary text-body mb-grid-2">
-              Complete your clinical profile to get a personalized spoon budget
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Hero Section */}
+      <section className="px-grid-3 pt-[64px] pb-[48px] md:px-grid-5">
+        <div className="max-w-4xl mx-auto text-center space-y-grid-4">
+          <div className="flex justify-center">
+            <Image
+              src="/spoonshare-banner.png"
+              alt="SpoonShare"
+              width={720}
+              height={360}
+              className="rounded-2xl"
+              priority
+            />
+          </div>
+
+          <div className="space-y-grid-2">
+            <h1 className="text-[36px] md:text-[48px] font-bold text-[#1E293B] leading-tight tracking-tight">
+              Digital health consultant and predictor.
+            </h1>
+            <p className="text-[18px] md:text-[22px] text-[#64748B] max-w-2xl mx-auto leading-relaxed">
+              Master your energy, predict your day, and validate the invisible.
             </p>
+          </div>
+
+          <div className="flex justify-center pt-grid-2">
             <button
-              onClick={() => router.push("/onboarding")}
-              className="px-grid-3 py-[10px] rounded-pill bg-primary/20 hover:bg-primary/30 text-primary font-medium transition-colors duration-200 cursor-pointer"
+              onClick={() => router.push("/login")}
+              className="px-[40px] py-[16px] rounded-full bg-white text-[#4BA8A7] font-semibold text-[18px] transition-all duration-300 cursor-pointer shadow-[0_0_30px_rgba(75,168,167,0.25)] hover:shadow-[0_0_50px_rgba(75,168,167,0.4)] border border-[#4BA8A7]/20"
             >
-              Start Onboarding
+              Sign In
             </button>
           </div>
-        )}
+        </div>
+      </section>
 
-        {onboardingDiseaseMessage && (
-          <div className="glass-card p-grid-3 border-primary/30 rounded-card">
-            <p className="text-body text-primary">{onboardingDiseaseMessage}</p>
-            <button
-              type="button"
-              onClick={() => setOnboardingDiseaseMessage(null)}
-              className="mt-grid-2 text-data text-text-secondary hover:text-text-primary"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
+      {/* Mission Section */}
+      <section className="px-grid-3 py-[48px] md:px-grid-5">
+        <div className="max-w-3xl mx-auto bg-white/70 backdrop-blur-[12px] rounded-2xl border border-[#4BA8A7]/10 p-[40px] md:p-[56px] shadow-sm">
+          <h2 className="text-[28px] md:text-[32px] font-bold text-[#1E293B] mb-grid-3 text-center">
+            Why we created SpoonShare
+          </h2>
+          <p className="text-[16px] md:text-[18px] text-[#64748B] leading-relaxed text-center">
+            Living with a rare disease shouldn&apos;t mean living in the dark.
+            We built SpoonShare to turn the Spoon Theory into a scientific
+            forecasting tool, giving you the clarity to navigate your day
+            without the fear of a crash.
+          </p>
+        </div>
+      </section>
 
-        {/* Morning Check-In */}
-        {hasCompletedOnboarding && !hasCheckedInToday && (
-          <MorningCheckIn onComplete={handleCheckInComplete} />
-        )}
-
-        {/* Dashboard (after check-in) */}
-        {hasCheckedInToday && dailyBudget && (
-          <>
-            {/* Battery Meter — Glassmorphism Card §4A */}
-            <section className="glass-card rounded-card p-grid-4 space-y-grid-3">
-              <div className="text-center">
-                <p className="text-text-secondary text-data uppercase tracking-wide">
-                  Today&apos;s Spoon Budget
-                </p>
-                {/* Data/Numbers: font-mono per MASTER.md */}
-                <div className="text-[56px] font-bold font-mono text-text-primary mt-grid-1 mb-grid-2">
-                  {effectiveSpoons}
-                </div>
-              </div>
-
-              <BatteryMeter current={effectiveSpoons} max={20} />
-
-              <div className="pt-grid-1">
-                <DeductionTooltip budget={dailyBudget} weather={weatherInfo} />
-              </div>
-            </section>
-
-            {/* Schedule Audit Section */}
-            {scheduleAudit ? (
-              <DailyForecast
-                audit={scheduleAudit}
-                optimization={scheduleOptimization}
-                crashPrediction={crashPrediction}
-                startingSpoons={effectiveSpoons}
-                usingDemo={usingDemoCalendar}
-              />
-            ) : (
-              <section className="glass-card rounded-card p-grid-3 text-center space-y-grid-2">
-                <div className="flex items-center justify-center gap-grid-1">
-                  <svg
-                    className="w-6 h-6 text-primary"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                  <h3 className="text-h2 text-text-primary">
-                    Schedule Energy Forecast
-                  </h3>
-                </div>
-                <p className="text-data text-text-secondary">
-                  Let AI analyze your calendar and predict when you might crash
-                  today.
-                </p>
-                <button
-                  onClick={handleRunScheduleAudit}
-                  disabled={isAuditLoading}
-                  className="px-grid-3 py-[10px] rounded-pill bg-primary hover:bg-primary/80 disabled:opacity-50 disabled:cursor-not-allowed text-background font-medium transition-colors duration-200 cursor-pointer"
+      {/* Features Grid */}
+      <section className="px-grid-3 pt-[16px] pb-[80px] md:px-grid-5">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-3 gap-grid-3">
+          {/* Predictive Pacing */}
+          <article className="bg-white/70 backdrop-blur-[12px] rounded-2xl border border-[#4BA8A7]/10 p-[32px] space-y-grid-2 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[#4BA8A7]/10 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-[#4BA8A7]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  {isAuditLoading
-                    ? "Analyzing Schedule..."
-                    : "Analyze My Schedule"}
-                </button>
-                <p className="text-[12px] text-text-secondary/60">
-                  Uses Google Calendar if connected, or demo events for preview
-                </p>
-              </section>
-            )}
-
-            {/* Condition Tier badge — disease-aware pacing */}
-            {(profile.impact_tier != null ||
-              (profile.activity_multiplier != null &&
-                profile.activity_multiplier > 1)) && (
-              <section className="glass-card rounded-card p-grid-3">
-                <div className="flex items-center gap-grid-2 flex-wrap">
-                  <span className="px-grid-2 py-grid-1 rounded-pill bg-primary/15 text-primary text-data font-medium border border-primary/25">
-                    {profile.impact_tier === 3
-                      ? "Tier 3 (Severe)"
-                      : profile.impact_tier === 2
-                        ? "Tier 2 (Moderate)"
-                        : profile.impact_tier === 1
-                          ? "Tier 1 (Mild)"
-                          : "Condition tier"}
-                  </span>
-                  {profile.activity_multiplier != null &&
-                    profile.activity_multiplier > 1 && (
-                      <span className="text-data text-text-secondary">
-                        Activity costs ×{profile.activity_multiplier.toFixed(1)}
-                      </span>
-                    )}
-                  {profile.identified_condition && (
-                    <span className="text-data text-text-secondary">
-                      {profile.identified_condition}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[12px] text-text-secondary/80 mt-grid-1">
-                  Your activity costs are scaled to reflect your condition.
-                </p>
-              </section>
-            )}
-
-            {/* Condition Tags — Pill shape per MASTER.md */}
-            {profile.condition_tags.length > 0 && (
-              <div className="flex flex-wrap gap-grid-1">
-                {profile.condition_tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-grid-2 py-grid-1 rounded-pill bg-primary/10 text-primary text-data border border-primary/20"
-                  >
-                    {tag}
-                  </span>
-                ))}
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
               </div>
-            )}
+            </div>
+            <h3 className="text-[18px] font-semibold text-[#1E293B] text-center">
+              Predictive Pacing
+            </h3>
+            <p className="text-[14px] text-[#64748B] text-center leading-relaxed">
+              Sync Apple Watch biometrics and local weather to calculate your
+              daily energy budget.
+            </p>
+          </article>
 
-            {/* AI Insight */}
-            {profile.educational_note && (
-              <section className="glass-card rounded-card p-grid-3">
-                <p className="text-data text-text-secondary mb-grid-1">
-                  AI Insight
-                </p>
-                <p className="text-body text-text-primary/90">
-                  {profile.educational_note}
-                </p>
-              </section>
-            )}
-
-            {/* Weather Card */}
-            {weatherInfo && (
-              <section className="glass-card rounded-card p-grid-3">
-                <div className="flex items-center gap-grid-1 mb-grid-2">
-                  <svg
-                    className="w-5 h-5 text-primary"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-                  </svg>
-                  <p className="text-data font-medium text-text-secondary">
-                    Environmental Conditions
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-grid-2 text-center">
-                  <div>
-                    <p className="text-[24px] font-semibold font-mono text-text-primary">
-                      {weatherInfo.pressure_hpa}
-                    </p>
-                    <p className="text-[12px] text-text-secondary/60">
-                      hPa pressure
-                    </p>
-                  </div>
-                  <div>
-                    <p
-                      className={`text-[24px] font-semibold font-mono ${
-                        weatherInfo.pressure_delta < -5
-                          ? "text-critical"
-                          : "text-text-primary"
-                      }`}
-                    >
-                      {weatherInfo.pressure_delta > 0 ? "+" : ""}
-                      {weatherInfo.pressure_delta.toFixed(1)}
-                    </p>
-                    <p className="text-[12px] text-text-secondary/60">
-                      12h delta
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[24px] font-semibold font-mono text-text-primary">
-                      {weatherInfo.temperature_c.toFixed(0)}°
-                    </p>
-                    <p className="text-[12px] text-text-secondary/60">
-                      celsius
-                    </p>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Spoon Ledger — manual events */}
-            <SpoonLedger />
-
-            {/* Caregiver Sync */}
-            <CaregiverShare />
-
-            {/* Clinical Brief — Generate Report */}
-            <section className="glass-card rounded-card p-grid-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-grid-2">
-                  <svg
-                    className="w-6 h-6 text-primary"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                    <polyline points="10 9 9 9 8 9" />
-                  </svg>
-                  <div>
-                    <h3 className="text-body font-semibold text-text-primary">
-                      Clinical Brief
-                    </h3>
-                    <p className="text-[12px] text-text-secondary">
-                      Generate an HPO-mapped medical report from your weekly
-                      data. Share with your doctor (24h link) or download PDF.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => router.push("/report")}
-                  className="px-grid-2 py-grid-1 rounded-pill bg-primary hover:bg-primary/80 text-background text-data font-medium transition-colors duration-200 cursor-pointer"
+          {/* Smart Scheduling */}
+          <article className="bg-white/70 backdrop-blur-[12px] rounded-2xl border border-[#4BA8A7]/10 p-[32px] space-y-grid-2 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[#4BA8A7]/10 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-[#4BA8A7]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  Generate Report
-                </button>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
               </div>
-            </section>
-          </>
-        )}
-      </div>
+            </div>
+            <h3 className="text-[18px] font-semibold text-[#1E293B] text-center">
+              Smart Scheduling
+            </h3>
+            <p className="text-[14px] text-[#64748B] text-center leading-relaxed">
+              AI-driven Google Calendar audits that identify crash risks and
+              suggest recovery blocks.
+            </p>
+          </article>
+
+          {/* Caregiver Sync */}
+          <article className="bg-white/70 backdrop-blur-[12px] rounded-2xl border border-[#4BA8A7]/10 p-[32px] space-y-grid-2 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-xl bg-[#4BA8A7]/10 flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-[#4BA8A7]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-[18px] font-semibold text-[#1E293B] text-center">
+              Caregiver Sync
+            </h3>
+            <p className="text-[14px] text-[#64748B] text-center leading-relaxed">
+              Real-time energy sharing with your support network and automated
+              SOS alerts.
+            </p>
+          </article>
+        </div>
+      </section>
     </div>
   );
 }

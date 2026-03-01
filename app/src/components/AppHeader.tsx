@@ -18,13 +18,18 @@ export default function AppHeader() {
   const isPublicPage =
     pathname?.startsWith("/status/") || pathname?.startsWith("/report/shared/");
   const showSignOut = isAuthenticated && pathname !== "/login" && !isPublicPage;
-  const showLogIn = !isAuthenticated && pathname !== "/login" && !isPublicPage;
+  const showSignIn = !isAuthenticated && pathname !== "/login" && !isPublicPage;
+  const showDashboard =
+    isAuthenticated &&
+    pathname !== "/dashboard" &&
+    pathname !== "/login" &&
+    !isPublicPage;
 
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
     logout();
-    router.push("/login");
+    router.push("/");
   }
 
   return (
@@ -32,14 +37,22 @@ export default function AppHeader() {
       className="flex items-center justify-between gap-4 w-full border-b border-primary-pale/50 bg-surface px-4 py-3 md:px-6"
       role="banner"
     >
-      <Logo />
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {showLogIn && (
+      <Logo linkTo={isAuthenticated ? "/dashboard" : "/"} />
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {showSignIn && (
           <Link
             href="/login"
             className="text-data font-medium text-primary hover:text-primary-light transition-colors"
           >
-            Log In
+            Sign In
+          </Link>
+        )}
+        {showDashboard && (
+          <Link
+            href="/dashboard"
+            className="px-grid-2 py-grid-1 rounded-pill bg-primary hover:bg-primary/80 text-background text-data font-medium transition-colors duration-200"
+          >
+            Go to Dashboard
           </Link>
         )}
         {showSignOut && (

@@ -7,7 +7,10 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createServerSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.exchangeCodeForSession(code);
     if (!error && user) {
       // If user has completed onboarding (symptom_data), go to dashboard
       const { data: profile } = await supabase
@@ -15,8 +18,11 @@ export async function GET(request: Request) {
         .select("symptom_data")
         .eq("id", user.id)
         .single();
-      const hasOnboarding = profile?.symptom_data && Object.keys(profile.symptom_data).length > 0;
-      return NextResponse.redirect(hasOnboarding ? `${origin}/` : `${origin}/onboarding`);
+      const hasOnboarding =
+        profile?.symptom_data && Object.keys(profile.symptom_data).length > 0;
+      return NextResponse.redirect(
+        hasOnboarding ? `${origin}/dashboard` : `${origin}/onboarding`,
+      );
     }
   }
 

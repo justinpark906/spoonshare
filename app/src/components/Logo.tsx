@@ -7,35 +7,27 @@ import Image from "next/image";
 export default function Logo({
   variant = "default",
   className = "",
+  linkTo = "/",
 }: {
   variant?: "default" | "compact";
   className?: string;
+  linkTo?: string;
 }) {
   const isCompact = variant === "compact";
   return (
     <Link
-      href="/"
+      href={linkTo}
       className={`inline-flex items-center gap-3 no-underline ${className}`}
       aria-label="SpoonShare — Proactive Energy Management"
     >
       <Image
         src="/logo.png"
         alt=""
-        width={isCompact ? 40 : 56}
-        height={isCompact ? 40 : 56}
+        width={isCompact ? 48 : 72}
+        height={isCompact ? 48 : 72}
         className="flex-shrink-0"
         priority
       />
-      {!isCompact && (
-        <div className="flex flex-col">
-          <span className="text-lg font-bold tracking-tight text-text-primary">
-            SPOONSHARE
-          </span>
-          <span className="text-xs font-normal text-text-secondary">
-            Proactive Energy Management
-          </span>
-        </div>
-      )}
     </Link>
   );
 }
