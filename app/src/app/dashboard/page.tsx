@@ -437,14 +437,34 @@ export default function DashboardPage() {
               {/* Condition Tags */}
               {profile.condition_tags.length > 0 && (
                 <div className="flex flex-wrap gap-grid-1">
-                  {profile.condition_tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-grid-2 py-grid-1 rounded-pill bg-primary/10 text-primary text-data border border-primary/20"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+                  {profile.condition_tags
+                    .filter((tag) => {
+                      const trimmed = tag.trim();
+                      if (
+                        trimmed ===
+                        "General symptom load — add a valid GROQ_API_KEY for personalized tags"
+                      ) {
+                        return false;
+                      }
+                      if (
+                        trimmed === "ME/CFS Pattern" ||
+                        trimmed === "Dysautonomia Risk" ||
+                        trimmed === "EDS Spectrum" ||
+                        trimmed === "Sensory Processing Concern" ||
+                        trimmed === "Complex Multi-System"
+                      ) {
+                        return false;
+                      }
+                      return true;
+                    })
+                    .map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-grid-2 py-grid-1 rounded-pill bg-primary/10 text-primary text-data border border-primary/20"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                 </div>
               )}
 

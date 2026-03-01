@@ -167,12 +167,6 @@ Analyze each calendar event and assign a "Spoon Cost" (1-10) based on these rule
 - In-person with location (travel fatigue): +2 spoons
 - Back-to-back events (no gap): +1 spoon to the second event
 
-**Condition-specific adjustments:**
-- If patient has "Dysautonomia Risk": standing/walking events cost +1
-- If patient has "EDS Spectrum": physical events cost +2
-- If patient has "ME/CFS Pattern": ALL events cost +1 (post-exertional malaise risk)
-- If patient has "Sensory Processing Concern": loud/stimulating environments +1
-
 **Priority classification:**
 - essential: medical appointments, critical work meetings
 - important: regular work tasks, necessary errands

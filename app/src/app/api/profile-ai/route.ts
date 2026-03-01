@@ -23,9 +23,7 @@ const profileSchema = z.object({
     ),
   condition_tags: z
     .array(z.string())
-    .describe(
-      "Clinical condition tags inferred from the symptom pattern, e.g. 'Dysautonomia Risk', 'EDS Spectrum', 'ME/CFS Pattern'"
-    ),
+    .describe("Clinical condition tags inferred from the symptom pattern."),
   educational_note: z
     .string()
     .describe(
@@ -60,12 +58,7 @@ function getDefaultProfile(scores: Record<string, number>) {
   const multiplier = avg >= 7 ? 1.5 : avg >= 4 ? 1.2 : 1.0;
   return {
     suggested_multiplier: multiplier,
-    condition_tags:
-      avg >= 6
-        ? [
-            "General symptom load — add a valid GROQ_API_KEY for personalized tags",
-          ]
-        : [],
+    condition_tags: [],
     educational_note:
       "Profile saved. Add a valid GROQ_API_KEY to .env.local for Groq-based multiplier and condition tags.",
   };
@@ -237,12 +230,7 @@ Scoring guidelines:
 - Sensory Hypersensitivity >= 7: increase by 0.05-0.15 (environmental exposure costs more)
 - Multiplier should typically range from 1.0 (minimal symptoms) to 2.5 (severe multi-system involvement)
 
-For condition_tags, infer likely clinical patterns:
-- High PEM + fatigue pattern → "ME/CFS Pattern"
-- High orthostatic + dizziness → "Dysautonomia Risk"
-- High joint hypermobility + pain → "EDS Spectrum"
-- High sensory sensitivity → "Sensory Processing Concern"
-- Multiple high scores → "Complex Multi-System"
+For condition_tags, you may extract clinically meaningful descriptors (e.g. "orthostatic intolerance", "high chronic pain load", "pronounced sensory sensitivity") but avoid invented syndrome labels.
 
 Be empathetic and precise. The educational_note should be one sentence a patient can understand.
 
@@ -283,10 +271,22 @@ Please analyze my profile and provide the structured output.`,
     }
 
     // 4. Match to GARD disease (HPO overlap) and set activity_multiplier
+    const bannedTags = new Set<string>([
+      "ME/CFS Pattern",
+      "Dysautonomia Risk",
+      "EDS Spectrum",
+      "Sensory Processing Concern",
+      "Complex Multi-System",
+    ]);
+
+    const filteredConditionTags = result.condition_tags.filter(
+      (tag) => !bannedTags.has(tag.trim()),
+    );
+
     const profileUpdate: Record<string, unknown> = {
       symptom_data: scores,
       current_multiplier: result.suggested_multiplier,
-      condition_tags: result.condition_tags,
+      condition_tags: filteredConditionTags,
       educational_note: result.educational_note,
     };
     const userLabels = userSymptomLabels(
