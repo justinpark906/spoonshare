@@ -196,8 +196,10 @@ Please generate the structured clinical report.`,
     const weatherObservations = summary.weather_logs.length > 0
       ? summary.weather_logs
         .map(
-          (w) =>
-            `${new Date(w.recorded_at).toLocaleDateString()}: ${w.pressure_hpa} hPa, ${w.temperature_c}°C, ${w.weather_condition}`
+          (w) => {
+            const temperatureF = ((w.temperature_c * 9) / 5 + 32).toFixed(1);
+            return `${new Date(w.recorded_at).toLocaleDateString()}: ${w.pressure_hpa} hPa, ${temperatureF}°F, ${w.weather_condition}`;
+          }
         )
         .join("\n")
       : "No weather data recorded (demo mode)";

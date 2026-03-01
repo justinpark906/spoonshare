@@ -65,6 +65,7 @@ const categoryColors: Record<string, string> = {
 export default function CalendarView() {
   const profile = useSpoonStore((s) => s.profile);
   const effectiveSpoons = useSpoonStore((s) => s.effectiveSpoons);
+  const supabase = createClient();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<string>(
     formatDateKey(new Date()),
@@ -110,11 +111,37 @@ export default function CalendarView() {
   const fromStr = `${year}-${String(month + 1).padStart(2, "0")}-01`;
   const toStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
 
+  const cacheGoogleProviderToken = useCallback(async () => {
+    if (!profile?.id) return;
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const providerToken = (session as { provider_token?: string } | null)?.provider_token;
+      if (!providerToken) return;
+
+      await supabase.from("owner_oauth_tokens").upsert(
+        {
+          owner_id: profile.id,
+          google_provider_token: providerToken,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "owner_id" },
+      );
+    } catch {
+      // Non-blocking cache write
+    }
+  }, [profile?.id, supabase]);
+
   const fetchEvents = useCallback(async () => {
     if (!profile?.id) return;
     setLoading(true);
 
     try {
+      await cacheGoogleProviderToken();
+
       const [gcalRes, manualRes] = await Promise.all([
         fetch(`/api/calendar-events?from=${fromStr}&to=${toStr}`),
         fetch(`/api/manual-events?from=${fromStr}&to=${toStr}`),
@@ -135,7 +162,7 @@ export default function CalendarView() {
     } finally {
       setLoading(false);
     }
-  }, [profile?.id, fromStr, toStr]);
+  }, [profile?.id, fromStr, toStr, cacheGoogleProviderToken]);
 
   useEffect(() => {
     fetchEvents();
@@ -243,7 +270,6 @@ export default function CalendarView() {
           <button
             type="button"
             onClick={async () => {
-              const supabase = createClient();
               await supabase.auth.signInWithOAuth({
                 provider: "google",
                 options: {
@@ -412,11 +438,10 @@ export default function CalendarView() {
         {showAddForm && (
           <form
             onSubmit={handleAddEvent}
-            className={`bg-surface rounded-lg p-grid-2 space-y-grid-1 border transition-colors ${
-              wouldGoNegative && prediction
+            className={`bg-surface rounded-lg p-grid-2 space-y-grid-1 border transition-colors ${wouldGoNegative && prediction
                 ? "border-critical"
                 : "border-[rgba(255,255,255,0.1)]"
-            }`}
+              }`}
           >
             <input
               type="text"
@@ -483,9 +508,8 @@ export default function CalendarView() {
                 </div>
                 <div className="h-1.5 bg-primary/10 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      wouldGoNegative ? "bg-critical" : "bg-primary"
-                    }`}
+                    className={`h-full rounded-full transition-all duration-500 ${wouldGoNegative ? "bg-critical" : "bg-primary"
+                      }`}
                     style={{ width: `${(prediction.finalCost / 10) * 100}%` }}
                   />
                 </div>
@@ -583,15 +607,14 @@ export default function CalendarView() {
         {selectedDayEvents.manual.map((event) => (
           <div key={event.id} className="flex items-start gap-2 py-1.5">
             <div
-              className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                event.category === "rest"
+              className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${event.category === "rest"
                   ? "bg-primary"
                   : event.category === "heavy"
                     ? "bg-critical"
                     : event.category === "moderate"
                       ? "bg-warning"
                       : "bg-text-secondary"
-              }`}
+                }`}
             />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] text-text-primary truncate">

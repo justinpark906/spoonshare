@@ -4,7 +4,12 @@ import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getDemoCalendarEvents, CalendarEvent } from "@/lib/google-calendar";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import {
+    getCalendarEvents,
+    getDemoCalendarEvents,
+    CalendarEvent,
+} from "@/lib/google-calendar";
 
 const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || "llama-3.3-70b-versatile";
 
@@ -67,39 +72,65 @@ export async function GET(
 
         let events: CalendarEvent[] = [];
         let usingDemo = false;
+        let eventSource: "google" | "manual" | "demo" = "manual";
 
-        const { data: manualEvents } = await supabase
-            .from("manual_events")
-            .select("id, title, start_time, end_time, category")
-            .eq("user_id", ownerId)
-            .neq("category", "rest")
-            .gte("start_time", nowIso)
-            .lte("start_time", tomorrowIso)
-            .order("start_time", { ascending: true });
+        const adminSupabase = createAdminSupabaseClient();
+        if (adminSupabase) {
+            const { data: tokenRow } = await adminSupabase
+                .from("owner_oauth_tokens")
+                .select("google_provider_token")
+                .eq("owner_id", ownerId)
+                .single();
 
-        if (manualEvents && manualEvents.length > 0) {
-            events = manualEvents.map((e) => {
-                const startIso = new Date(e.start_time).toISOString();
-                const endIso = e.end_time
-                    ? new Date(e.end_time).toISOString()
-                    : new Date(new Date(e.start_time).getTime() + 30 * 60 * 1000).toISOString();
+            const providerToken = tokenRow?.google_provider_token?.trim();
+            if (providerToken) {
+                try {
+                    events = await getCalendarEvents(providerToken);
+                    if (events.length > 0) {
+                        eventSource = "google";
+                    }
+                } catch {
+                    events = [];
+                }
+            }
+        }
 
-                return {
-                    id: String(e.id),
-                    title: String(e.title),
-                    start: startIso,
-                    end: endIso,
-                    duration_minutes: Math.max(
-                        15,
-                        Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / (1000 * 60)),
-                    ),
-                    location: null,
-                    is_all_day: false,
-                } satisfies CalendarEvent;
-            });
-        } else {
-            events = getDemoCalendarEvents();
-            usingDemo = true;
+        if (!events.length) {
+            const { data: manualEvents } = await supabase
+                .from("manual_events")
+                .select("id, title, start_time, end_time, category")
+                .eq("user_id", ownerId)
+                .neq("category", "rest")
+                .gte("start_time", nowIso)
+                .lte("start_time", tomorrowIso)
+                .order("start_time", { ascending: true });
+
+            if (manualEvents && manualEvents.length > 0) {
+                events = manualEvents.map((e) => {
+                    const startIso = new Date(e.start_time).toISOString();
+                    const endIso = e.end_time
+                        ? new Date(e.end_time).toISOString()
+                        : new Date(new Date(e.start_time).getTime() + 30 * 60 * 1000).toISOString();
+
+                    return {
+                        id: String(e.id),
+                        title: String(e.title),
+                        start: startIso,
+                        end: endIso,
+                        duration_minutes: Math.max(
+                            15,
+                            Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / (1000 * 60)),
+                        ),
+                        location: null,
+                        is_all_day: false,
+                    } satisfies CalendarEvent;
+                });
+                eventSource = "manual";
+            } else {
+                events = getDemoCalendarEvents();
+                usingDemo = true;
+                eventSource = "demo";
+            }
         }
 
         if (!events.length) {
@@ -236,6 +267,7 @@ Please analyze each event and provide the structured output.`,
                 total_projected_drain: adjustedTotal,
                 crash_probability: adjustedCrash,
             },
+            event_source: eventSource,
             using_demo: usingDemo,
             starting_spoons: startingSpoons,
         });

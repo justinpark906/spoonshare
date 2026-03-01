@@ -35,7 +35,9 @@ Create `app/.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 OPENWEATHERMAP_API_KEY=your-key   # optional; uses demo weather if missing
-OPENAI_API_KEY=your-key          # for LangChain (profile AI, schedule audit, report)
+GROQ_API_KEY=your-key            # for AI features (profile AI, schedule audit, report)
+GROQ_MODEL=llama-3.3-70b-versatile  # optional model override
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # optional; enables caregiver Google forecast parity
 ```
 
 ### 3. Database (Supabase)
@@ -47,6 +49,7 @@ Run the SQL migrations in the Supabase SQL Editor, in order:
 3. `app/supabase-schema-phase4.sql` — shared_access, daily_logs columns, realtime
 4. `app/supabase-schema-phase5.sql` — user_notes, reports
 5. `app/supabase-schema-phase6-biometrics.sql` — biometrics, manual_events, hrv_baseline (profiles), hrv_deduction (daily_logs)
+6. `app/supabase-schema-phase7-oauth-cache.sql` — owner_oauth_tokens cache for caregiver forecast parity
 
 ### 4. Disable email confirmation (optional)
 
@@ -68,8 +71,10 @@ Supabase requires new users to confirm their email by default. For local dev or 
 4. In **Settings → Environment Variables**, add (and enable for **Build** and **Production**):
    - `NEXT_PUBLIC_SUPABASE_URL` = your Supabase project URL
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
-   - `OPENAI_API_KEY` = optional; for AI features
+   - `GROQ_API_KEY` = optional; for AI features
+   - `GROQ_MODEL` = optional; model override
    - `OPENWEATHERMAP_API_KEY` = optional; for weather deductions
+   - `SUPABASE_SERVICE_ROLE_KEY` = optional; enables caregiver forecast use of owner Google calendar
 5. Redeploy.
 
 ---
