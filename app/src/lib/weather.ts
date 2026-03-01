@@ -1,7 +1,8 @@
 /**
  * Weather Integration Service for SpoonShare
  *
- * Fetches barometric pressure & temperature from OpenWeatherMap,
+ * Fetches barometric pressure & temperature from OpenWeatherMap
+ * or an Open-Meteo URL provided via WEATHER_API_KEY,
  * compares against 12h-ago readings to compute spoon deductions.
  */
 
@@ -21,6 +22,18 @@ export interface WeatherDeductionResult {
 
 const OWM_BASE = "https://api.openweathermap.org/data/2.5/weather";
 
+function weatherCodeToDescription(code: number): string {
+  if (code === 0) return "clear sky";
+  if ([1, 2].includes(code)) return "partly cloudy";
+  if (code === 3) return "overcast";
+  if ([45, 48].includes(code)) return "fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "rain";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
+  if ([95, 96, 99].includes(code)) return "thunderstorm";
+  return "unknown";
+}
+
 /**
  * Fetch current weather for a given lat/lon from OpenWeatherMap.
  */
@@ -28,6 +41,35 @@ export async function fetchCurrentWeather(
   lat: number,
   lon: number,
 ): Promise<WeatherData> {
+  const weatherApiOverride = process.env.WEATHER_API_KEY?.trim();
+  if (weatherApiOverride?.startsWith("http")) {
+    const res = await fetch(weatherApiOverride, { next: { revalidate: 1800 } });
+
+    if (!res.ok) {
+      throw new Error(`Open-Meteo API error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    const currentWeather = data?.current_weather;
+
+    const rawTemp = Number(currentWeather?.temperature);
+    const usesFahrenheit = /temperature_unit=fahrenheit/i.test(weatherApiOverride);
+    const temperatureC = usesFahrenheit
+      ? ((rawTemp - 32) * 5) / 9
+      : rawTemp;
+
+    const surfacePressure = Number(data?.current?.surface_pressure);
+    const humidity = Number(data?.current?.relative_humidity_2m);
+    const weatherCode = Number(currentWeather?.weathercode);
+
+    return {
+      pressure_hpa: Number.isFinite(surfacePressure) ? surfacePressure : 1013,
+      temperature_c: Number.isFinite(temperatureC) ? temperatureC : 20,
+      humidity: Number.isFinite(humidity) ? humidity : 50,
+      weather_condition: weatherCodeToDescription(weatherCode),
+    };
+  }
+
   const apiKey = process.env.OPENWEATHERMAP_API_KEY;
 
   if (!apiKey || apiKey === "your_openweathermap_api_key_here") {

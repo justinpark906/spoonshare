@@ -34,7 +34,8 @@ Create `app/.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-OPENWEATHERMAP_API_KEY=your-key   # optional; uses demo weather if missing
+WEATHER_API_KEY=https://api.open-meteo.com/v1/forecast?latitude=42.3601&longitude=-71.0589&current_weather=true&temperature_unit=fahrenheit
+OPENWEATHERMAP_API_KEY=your-key   # optional fallback if WEATHER_API_KEY is not set
 GROQ_API_KEY=your-key            # for AI features (profile AI, schedule audit, report)
 GROQ_MODEL=llama-3.3-70b-versatile  # optional model override
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # optional; enables caregiver Google forecast parity
@@ -73,7 +74,8 @@ Supabase requires new users to confirm their email by default. For local dev or 
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = your Supabase anon key
    - `GROQ_API_KEY` = optional; for AI features
    - `GROQ_MODEL` = optional; model override
-   - `OPENWEATHERMAP_API_KEY` = optional; for weather deductions
+   - `WEATHER_API_KEY` = optional; Open-Meteo URL override for weather
+   - `OPENWEATHERMAP_API_KEY` = optional fallback weather key
    - `SUPABASE_SERVICE_ROLE_KEY` = optional; enables caregiver forecast use of owner Google calendar
 5. Redeploy.
 
